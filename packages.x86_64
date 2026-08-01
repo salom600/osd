@@ -103,8 +103,8 @@ pipewire-audio
 pipewire-jack
 pipewire-v4l2
 wireplumber
-pulseaudio-bluetooth
-pulseaudio-alsa
+# pulseaudio-bluetooth  # conflicts with pipewire-pulse (pipewire handles BT natively)
+# pulseaudio-alsa  # conflicts with pipewire-pulse (pipewire handles ALSA natively)
 sof-firmware
 alsa-firmware
 alsa-utils

@@ -281,6 +281,37 @@ def fix_community_repo_404(match: re.Match[str], root: Path) -> list[str]:
     return edited
 
 
+def fix_package_conflict(match: re.Match[str], root: Path) -> list[str]:
+    """
+    pacman: 'pkg-a and pkg-b are in conflict' -> comment out the
+    SECOND package (pkg-b) from packages.x86_64, keeping the first
+    (which is usually the one we want).
+    """
+    pkg_a = match.group("a").strip()
+    pkg_b = match.group("b").strip()
+    pfile = root / "packages.x86_64"
+    if not pfile.exists():
+        return []
+    text = pfile.read_text(encoding="utf-8", errors="replace")
+    new_lines = []
+    edited = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            line_pkg = re.split(r"[<>=\s]", stripped, 1)[0]
+            # Comment out pkg_b (the second one in the conflict)
+            if line_pkg == pkg_b:
+                new_lines.append(f"# REMOVED by auto-fix (conflicts with {pkg_a}): {line}")
+                edited = True
+                continue
+        new_lines.append(line)
+    if edited:
+        write_file_safe(pfile, "\n".join(new_lines) + "\n")
+        print(f"[auto-fix] Commented out {pkg_b} (conflicts with {pkg_a})")
+        return [str(pfile)]
+    return []
+
+
 def fix_disk_space(match: re.Match[str], root: Path) -> list[str]:
     """
     'No space left on device' -> trim package list aggressively.
@@ -417,6 +448,15 @@ RULES: list[Fixer] = [
             re.IGNORECASE,
         ),
         apply=fix_community_repo_404,
+    ),
+    Fixer(
+        name="package-conflict",
+        description="pacman: package conflict (pkg-a and pkg-b are in conflict) -> comment out pkg-b",
+        pattern=re.compile(
+            r"(?P<a>[\w\-\.+]+)-\S+\s+and\s+(?P<b>[\w\-\.+]+)-\S+\s+are\s+in\s+conflict",
+            re.IGNORECASE,
+        ),
+        apply=fix_package_conflict,
     ),
     Fixer(
         name="missing-package",
