@@ -178,7 +178,7 @@ plasma-disks
 plasma-firewall
 plasma-thunderbolt
 plasma-vault
-plasma-discover
+# REMOVED by auto-fix: plasma-discover  # package not found in repo
 # plasma-discover-backend-flatpak  # merged into plasma-discover
 # plasma-discover-backend-snap  # Plasma 6 dropped Snap support
 kwin
@@ -449,7 +449,7 @@ thermald
 # TRIMMED by auto-fix (disk space): virt-viewer
 ebtables
 dnsmasq
-bridge-utils-utilities
+# REMOVED by auto-fix: bridge-utils-utilities  # package not found in repo
 vde2
 swtpm
 
@@ -470,7 +470,7 @@ usbguard
 # - Calamares installer (modern, distro-agnostic)
 # Branding for Calamares is shipped as files under /etc/calamares/branding/novaos/
 # in the airootfs overlay - no separate package needed.
-calamares
+# REMOVED by auto-fix: calamares  # package not found in repo
 
 ## ---------- Compression / archive ----------
 zstd
