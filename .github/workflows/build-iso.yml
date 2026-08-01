@@ -127,10 +127,12 @@ jobs:
               cat /etc/pacman.d/mirrorlist
 
               # Force a fresh db sync now that we have a good mirrorlist.
-              # Use --verbose to show actual download progress (so we can
-              # verify the databases really downloaded, not just cached).
+              # Use -Syy (double y) to force fresh db download even if
+              # caches appear fresh. NOTE: avoid single quotes in this
+              # command - the entire script runs inside bash -c '...'
+              # so inner single quotes would terminate the wrapper.
               echo "=== Syncing pacman databases ==="
-              pacman -Syy --noconfirm --overwrite '*' 2>&1 | tail -20
+              pacman -Syy --noconfirm 2>&1 | tail -20
 
               # Sanity-check: can we find a known package in EACH repo?
               echo "=== Sanity-checking repos ==="
