@@ -449,7 +449,7 @@ thermald
 # TRIMMED by auto-fix (disk space): virt-viewer
 ebtables
 dnsmasq
-bridge-utils
+# REMOVED by auto-fix: bridge-utils  # package not found in repo
 vde2
 swtpm
 
