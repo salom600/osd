@@ -178,7 +178,7 @@ plasma-disks
 plasma-firewall
 plasma-thunderbolt
 plasma-vault
-# REMOVED by auto-fix: plasma-discover  # package not found in repo
+plasma-discover
 # plasma-discover-backend-flatpak  # merged into plasma-discover
 # plasma-discover-backend-snap  # Plasma 6 dropped Snap support
 kwin
@@ -449,7 +449,7 @@ thermald
 # TRIMMED by auto-fix (disk space): virt-viewer
 ebtables
 dnsmasq
-# REMOVED by auto-fix: bridge-utils-utilities  # package not found in repo
+bridge-utils
 vde2
 swtpm
 

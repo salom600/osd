@@ -112,39 +112,37 @@ jobs:
                 dosfstools
 
               echo "=== Refreshing mirrorlist (fastest HTTPS) ==="
-              # Try reflector first. If it fails, fall back to a hardcoded
-              # mirrorlist shipped in the repo at scripts/fallback-mirrorlist.
-              # (Using a file avoids single-quote escaping issues in the
-              # docker run bash -c '...' wrapper.)
-              if ! reflector \
-                  --country us,gb,de,fr,nl,se,jp,sg \
-                  --age 12 \
-                  --protocol https \
-                  --sort rate \
-                  --number 20 \
-                  --save /etc/pacman.d/mirrorlist 2>/tmp/reflector.err; then
-                echo "WARN: reflector failed - using hardcoded fallback mirrorlist"
-                cat /tmp/reflector.err || true
-                cp /novaos/scripts/fallback-mirrorlist /etc/pacman.d/mirrorlist
-              fi
+              # Use the hardcoded fallback mirrorlist directly - it contains
+              # ultra-reliable CDN-backed mirrors that are always up.
+              # Reflector is too unreliable in CI (timeouts, 403s, empty
+              # mirrorlists that silently break the db sync).
+              cp /novaos/scripts/fallback-mirrorlist /etc/pacman.d/mirrorlist
+
               # Verify mirrorlist is non-empty
               if [ ! -s /etc/pacman.d/mirrorlist ]; then
-                echo "FATAL: mirrorlist is empty after reflector + fallback"
+                echo "FATAL: mirrorlist is empty"
                 exit 1
               fi
               echo "Mirrorlist ($(wc -l < /etc/pacman.d/mirrorlist) entries):"
-              head -5 /etc/pacman.d/mirrorlist
+              cat /etc/pacman.d/mirrorlist
 
-              # Force a fresh db sync now that we have a good mirrorlist
+              # Force a fresh db sync now that we have a good mirrorlist.
+              # Use --verbose to show actual download progress (so we can
+              # verify the databases really downloaded, not just cached).
               echo "=== Syncing pacman databases ==="
-              pacman -Sy --noconfirm
+              pacman -Syy --noconfirm --overwrite '*' 2>&1 | tail -20
 
-              # Sanity-check: can we find a known package?
-              if ! pacman -Si bash >/dev/null 2>&1; then
-                echo "FATAL: pacman cannot find 'bash' - mirrorlist is broken"
-                exit 1
-              fi
-              echo "Mirrorlist OK - pacman can resolve packages."
+              # Sanity-check: can we find a known package in EACH repo?
+              echo "=== Sanity-checking repos ==="
+              for pkg in bash plasma-discover calamares lib32-mesa; do
+                if pacman -Si "$pkg" >/dev/null 2>&1; then
+                  echo "  OK: $pkg found"
+                else
+                  echo "  FAIL: $pkg NOT found - mirrorlist or db sync is broken"
+                  exit 1
+                fi
+              done
+              echo "All sanity checks passed - mirrorlist OK."
 
               echo "=== Building local novaos-repo (empty for now) ==="
               mkdir -p /tmp/novaos-repo/x86_64
