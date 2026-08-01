@@ -112,13 +112,46 @@ jobs:
                 dosfstools
 
               echo "=== Refreshing mirrorlist (fastest HTTPS) ==="
-              reflector \
-                --country us,gb,de,fr,nl,se,jp,sg \
-                --age 12 \
-                --protocol https \
-                --sort rate \
-                --number 20 \
-                --save /etc/pacman.d/mirrorlist || true
+              # Try reflector first. If it fails, fall back to a hardcoded
+              # list of ultra-reliable mirrors (printf-based, no heredoc).
+              if ! reflector \
+                  --country us,gb,de,fr,nl,se,jp,sg \
+                  --age 12 \
+                  --protocol https \
+                  --sort rate \
+                  --number 20 \
+                  --save /etc/pacman.d/mirrorlist 2>/tmp/reflector.err; then
+                echo "WARN: reflector failed - using hardcoded fallback mirrorlist"
+                cat /tmp/reflector.err || true
+                printf '%s\n' \
+                  'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' \
+                  'Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch' \
+                  'Server = https://mirror.leaseweb.net/archlinux/$repo/os/$arch' \
+                  'Server = https://arch.mirror.constant.com/archlinux/$repo/os/$arch' \
+                  'Server = https://mirror.arizona.edu/archlinux/$repo/os/$arch' \
+                  'Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch' \
+                  'Server = https://mirror.pit.teraswitch.com/archlinux/$repo/os/$arch' \
+                  'Server = https://mirror.fcix.net/archlinux/$repo/os/$arch' \
+                  > /etc/pacman.d/mirrorlist
+              fi
+              # Verify mirrorlist is non-empty
+              if [ ! -s /etc/pacman.d/mirrorlist ]; then
+                echo "FATAL: mirrorlist is empty after reflector + fallback"
+                exit 1
+              fi
+              echo "Mirrorlist ($(wc -l < /etc/pacman.d/mirrorlist) entries):"
+              head -5 /etc/pacman.d/mirrorlist
+
+              # Force a fresh db sync now that we have a good mirrorlist
+              echo "=== Syncing pacman databases ==="
+              pacman -Sy --noconfirm
+
+              # Sanity-check: can we find a known package?
+              if ! pacman -Si bash >/dev/null 2>&1; then
+                echo "FATAL: pacman cannot find 'bash' - mirrorlist is broken"
+                exit 1
+              fi
+              echo "Mirrorlist OK - pacman can resolve packages."
 
               echo "=== Building local novaos-repo (empty for now) ==="
               mkdir -p /tmp/novaos-repo/x86_64

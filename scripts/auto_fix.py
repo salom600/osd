@@ -106,28 +106,45 @@ def collect_logs(logs_dir: Path, build_logs_dir: Path | None) -> str:
 def fix_missing_package(match: re.Match[str], root: Path) -> list[str]:
     """
     Archiso failure: 'error: target not found: <pkgname>'
-    Fix: comment out the offending package in packages.x86_64.
+    Fix: comment out the offending package(s) in packages.x86_64.
+    Handles MULTIPLE missing packages per run by re-scanning the full log
+    via match.string (not just the first match).
     """
-    pkg = match.group("pkg").strip()
     pkgfile = root / "packages.x86_64"
     if not pkgfile.exists():
         return []
     text = pkgfile.read_text(encoding="utf-8", errors="replace")
+
+    # Re-scan the FULL log for ALL "target not found" occurrences, not just
+    # the first match. match.string is the full input log passed to .search().
+    all_pkgs = set()
+    for m in re.finditer(
+        r"error:\s*target not found:\s*(?P<pkg>[\w\-\.@+]+)",
+        match.string,
+        re.IGNORECASE,
+    ):
+        all_pkgs.add(m.group("pkg").strip())
+
+    if not all_pkgs:
+        # Fallback to the single-match case
+        all_pkgs = {match.group("pkg").strip()}
+
     new_lines = []
     edited = False
+    removed = []
     for line in text.splitlines():
-        # Skip comments and empty lines
         stripped = line.strip()
         if stripped and not stripped.startswith("#"):
-            # Match exact package name (strip version constraints)
             line_pkg = re.split(r"[<>=\s]", stripped, 1)[0]
-            if line_pkg == pkg:
+            if line_pkg in all_pkgs:
                 new_lines.append(f"# REMOVED by auto-fix: {line}  # package not found in repo")
                 edited = True
+                removed.append(line_pkg)
                 continue
         new_lines.append(line)
     if edited:
         write_file_safe(pkgfile, "\n".join(new_lines) + "\n")
+        print(f"[auto-fix] Commented out {len(removed)} missing packages: {', '.join(removed)}")
         return [str(pkgfile)]
     return []
 

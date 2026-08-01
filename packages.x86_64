@@ -66,7 +66,7 @@ exfatprogs
 f2fs-tools
 ntfs-3g
 xfsprogs
-reiserfsprogs
+# reiserfsprogs  # removed from Arch repos
 jfsutils
 udisks2
 polkit
@@ -124,7 +124,7 @@ lib32-mesa
 libva-mesa-driver
 libva-intel-driver
 intel-media-driver
-mesa-vdpau
+# mesa-vdpau  # removed from Arch repos
 libva
 libva-utils
 vdpauinfo
@@ -159,10 +159,10 @@ xorg-xhost
 xorg-twm
 xterm
 xorg-fonts-encodings
-xorg-fonts-util
+# xorg-fonts-util  # removed/merged into xorg-server
 wayland
 wayland-protocols
-xwayland
+xorg-xwayland
 weston
 seatd
 
@@ -179,8 +179,8 @@ plasma-firewall
 plasma-thunderbolt
 plasma-vault
 plasma-discover
-plasma-discover-backend-flatpak
-plasma-discover-backend-snap
+# plasma-discover-backend-flatpak  # merged into plasma-discover
+# plasma-discover-backend-snap  # Plasma 6 dropped Snap support
 kwin
 kde-cli-tools
 kde-gtk-config
@@ -222,7 +222,7 @@ kwalletmanager
 korganizer
 kmail
 kaddressbook
-kalendar
+merkuro
 elisa
 dragon
 # TRIMMED by auto-fix (disk space): kdenlive
@@ -285,7 +285,7 @@ gst-plugins-good
 gst-plugins-bad
 gst-plugins-ugly
 gst-libav
-pulseeffects
+# pulseeffects  # renamed to easyeffects (already in list)
 easyeffects
 # TRIMMED by auto-fix (disk space): kdenlive
 # TRIMMED by auto-fix (disk space): obs-studio
@@ -307,7 +307,7 @@ pdfarranger
 pdftk
 # masterpdfeditor  # AUR-only, not in official repos
 xournalpp
-marktext
+# marktext  # AUR-only
 ghostscript
 cups
 cups-filters
@@ -325,21 +325,21 @@ wine
 wine-gecko
 wine-mono
 winetricks
-bottles
+# bottles  # install via Flathub on NovaOS
 # proton-ge-custom  # AUR-only
-q4wine
+# q4wine  # AUR-only
 # playonlinux  # AUR-only
 dosbox
-dosbox-staging
+# dosbox-staging  # AUR-only (dosbox is in extra)
 scummvm
 
 ## ---------- Flatpak / Snap (app store backends) ----------
 flatpak
 flatpak-kcm
-snapd
-snapd-glib
+# snapd  # AUR-only (install via Flatpak on NovaOS)
+# snapd-glib  # AUR-only
 fwupd
-fwupd-efi
+# fwupd-efi  # merged into fwupd
 
 ## ---------- Development (minimal) ----------
 git
@@ -363,7 +363,7 @@ zstd
 file
 which
 less
-more
+# more  # not a package (coreutils binary)
 vim
 neovim
 nano
@@ -406,27 +406,27 @@ fcitx5-qt
 fcitx5-gtk
 fcitx5-configtool
 fcitx5-m17n
-fcitx5-arabic
+# fcitx5-arabic  # AUR-only
 ibus
-ibus-m17n
+# ibus-m17n  # AUR-only
 
 ## ---------- Theming & icons ----------
 papirus-icon-theme
-papirus-folders
+# papirus-folders  # AUR-only script
 breeze
 breeze-icons
 breeze-gtk
-tela-circle-icon-theme
-tela-icon-theme
-bibata-cursor-theme
+# tela-circle-icon-theme  # AUR-only
+# tela-icon-theme  # AUR-only
+# bibata-cursor-theme  # AUR-only
 capitaine-cursors
-yaru-icon-theme
-qogir-icon-theme
-kora-icon-theme
-whitesur-icon-theme
-whitesur-cursor-theme
-whitesur-gtk-theme
-whitesur-kde
+# yaru-icon-theme  # AUR-only
+# qogir-icon-theme  # AUR-only
+# kora-icon-theme  # AUR-only
+# whitesur-icon-theme  # AUR-only
+# whitesur-cursor-theme  # AUR-only
+# whitesur-gtk-theme  # AUR-only
+# whitesur-kde  # AUR-only
 # whitesur-cursor-theme-git  # AUR-only
 
 ## ---------- Power / laptop ----------
@@ -438,7 +438,7 @@ acpi
 acpid
 brightnessctl
 acpi_call
-mbpfan
+# mbpfan  # AUR-only
 thermald
 
 ## ---------- Virtualization (optional, useful for testers) ----------
@@ -449,7 +449,7 @@ thermald
 # TRIMMED by auto-fix (disk space): virt-viewer
 ebtables
 dnsmasq
-bridge-utils
+bridge-utils-utilities
 vde2
 swtpm
 
@@ -461,7 +461,7 @@ clamtk
 openssh
 fail2ban
 apparmor
-apparmor-profiles
+# apparmor-profiles  # removed from Arch repos
 firejail
 firetools
 usbguard
@@ -482,7 +482,7 @@ lzip
 lrzip
 p7zip
 unrar
-unar
+# unar  # AUR-only
 zip
 unzip
 
@@ -496,6 +496,6 @@ packagekit-qt6
 qt6ct
 qt5ct
 kvantum
-kvantum-qt6
+# kvantum-qt6  # AUR-only (kvantum is in extra)
 
 # End of package list
