@@ -239,6 +239,31 @@ def fix_archiso_deprecated_bootmode(match: re.Match[str], root: Path) -> list[st
     return []
 
 
+def fix_community_repo_404(match: re.Match[str], root: Path) -> list[str]:
+    """
+    Arch Linux merged [community] into [extra] in 2023. If a mirror
+    returns 404 for 'community.db', remove the [community] section from
+    both pacman.conf files.
+    """
+    edited = []
+    for pconf_path in [root / "pacman.conf", root / "airootfs/etc/pacman.conf"]:
+        if not pconf_path.exists():
+            continue
+        text = pconf_path.read_text(encoding="utf-8", errors="replace")
+        # Remove the [community] section (header + Include line, plus any
+        # blank lines around it)
+        new_text = re.sub(
+            r"\n\[community\]\nInclude\s*=\s*/etc/pacman\.d/mirrorlist\n",
+            "\n",
+            text,
+        )
+        # Also remove any "community" mentions in repo lists
+        if new_text != text:
+            write_file_safe(pconf_path, new_text)
+            edited.append(str(pconf_path))
+    return edited
+
+
 def fix_disk_space(match: re.Match[str], root: Path) -> list[str]:
     """
     'No space left on device' -> trim package list aggressively.
@@ -366,6 +391,15 @@ RULES: list[Fixer] = [
             re.IGNORECASE,
         ),
         apply=fix_archiso_deprecated_bootmode,
+    ),
+    Fixer(
+        name="community-repo-404",
+        description="pacman: community.db 404 (Arch merged [community] into [extra] in 2023) -> remove [community] from pacman.conf",
+        pattern=re.compile(
+            r"failed retrieving file.*community\.db.*returned error:\s*404",
+            re.IGNORECASE,
+        ),
+        apply=fix_community_repo_404,
     ),
     Fixer(
         name="missing-package",

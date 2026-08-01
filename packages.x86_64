@@ -305,7 +305,7 @@ poppler-glib
 qpdf
 pdfarranger
 pdftk
-masterpdfeditor
+# masterpdfeditor  # AUR-only, not in official repos
 xournalpp
 marktext
 ghostscript
@@ -326,9 +326,9 @@ wine-gecko
 wine-mono
 winetricks
 bottles
-proton-ge-custom
+# proton-ge-custom  # AUR-only
 q4wine
-playonlinux
+# playonlinux  # AUR-only
 dosbox
 dosbox-staging
 scummvm
@@ -427,7 +427,7 @@ whitesur-icon-theme
 whitesur-cursor-theme
 whitesur-gtk-theme
 whitesur-kde
-whitesur-cursor-theme-git
+# whitesur-cursor-theme-git  # AUR-only
 
 ## ---------- Power / laptop ----------
 tlp
@@ -467,10 +467,10 @@ firetools
 usbguard
 
 ## ---------- NovaOS-specific packages installed via customize script ----------
-# (These are real Arch packages; no meta-package required, just explicit names.)
 # - Calamares installer (modern, distro-agnostic)
+# Branding for Calamares is shipped as files under /etc/calamares/branding/novaos/
+# in the airootfs overlay - no separate package needed.
 calamares
-calamares-branding-novaos
 
 ## ---------- Compression / archive ----------
 zstd
@@ -492,7 +492,7 @@ appstream
 appstream-qt
 packagekit
 packagekit-qt6
-hawkthorne-theme
+# hawkthorne-theme  # AUR-only
 qt6ct
 qt5ct
 kvantum
