@@ -120,6 +120,10 @@ jobs:
               cd /novaos
 
               echo "=== Setting up mirrorlist + pacman config ==="
+              # Debug: list what's in /novaos/scripts/ to verify files are mounted
+              echo "Files in /novaos/scripts/:"
+              ls -la /novaos/scripts/
+
               # Use the hardcoded fallback mirrorlist - ultra-reliable CDN mirrors.
               cp /novaos/scripts/fallback-mirrorlist /etc/pacman.d/mirrorlist
 
