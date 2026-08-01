@@ -134,27 +134,146 @@ def fix_missing_package(match: re.Match[str], root: Path) -> list[str]:
 
 def fix_pacman_keyring(match: re.Match[str], root: Path) -> list[str]:
     """
-    Keyring errors -> ensure customize_airootfs.sh refreshes keyring.
+    Keyring/signature errors -> ensure customize_airootfs.sh refreshes keyring.
+    Only triggers on actual pacman signature errors, not just the word "keyring".
     """
     f = root / "airootfs/root/customize_airootfs.sh"
     if not f.exists():
         return []
     text = f.read_text(encoding="utf-8", errors="replace")
+    # Only inject if the script doesn't already have a keyring refresh
     if "pacman-key --init" in text and "pacman-key --populate archlinux" in text:
-        # Already there - try the heavier refresh approach
-        if "archlinux-keyring" not in text.split("locale-gen", 1)[0]:
-            # Insert keyring refresh right after the first echo
-            anchor = "echo \">>> Generating locales...\""
-            inject = (
-                'echo ">>> Refreshing archlinux-keyring (auto-fix)..."\n'
-                "pacman -Sy --noconfirm archlinux-keyring || true\n"
-                "pacman-key --init || true\n"
-                "pacman-key --populate archlinux || true\n"
-            )
-            if inject.strip() not in text:
-                new_text = text.replace(anchor, inject + anchor, 1)
-                write_file_safe(f, new_text)
-                return [str(f)]
+        return []  # already there
+    # Insert keyring refresh right after the first echo
+    anchor = "echo \">>> Generating locales...\""
+    inject = (
+        'echo ">>> Refreshing archlinux-keyring (auto-fix)..."\n'
+        "pacman -Sy --noconfirm archlinux-keyring || true\n"
+        "pacman-key --init || true\n"
+        "pacman-key --populate archlinux || true\n"
+    )
+    if anchor in text and inject.strip() not in text:
+        new_text = text.replace(anchor, inject + anchor, 1)
+        write_file_safe(f, new_text)
+        return [str(f)]
+    return []
+
+
+def fix_archiso_missing_package(match: re.Match[str], root: Path) -> list[str]:
+    """
+    archiso: "Validating '<bootmode>': The '<pkg>' package is missing from
+    the package list!" -> add the missing package to packages.x86_64.
+    """
+    pkg = match.group("pkg").strip()
+    pfile = root / "packages.x86_64"
+    if not pfile.exists():
+        return []
+    text = pfile.read_text(encoding="utf-8", errors="replace")
+    # Check if already present (even commented out -> uncomment)
+    for line in text.splitlines():
+        s = line.strip()
+        if s and not s.startswith("#"):
+            if re.split(r"[<>=\s]", s, 1)[0] == pkg:
+                return []  # already there
+    # Add under the "## ---------- Bootloaders ----------" section if present,
+    # else just append at the top.
+    if "## ---------- Bootloaders ----------" in text:
+        new_text = text.replace(
+            "## ---------- Bootloaders ----------\n",
+            f"## ---------- Bootloaders ----------\n{pkg}\n",
+            1,
+        )
+    else:
+        new_text = f"{pkg}\n" + text
+    if new_text != text:
+        write_file_safe(pfile, new_text)
+        return [str(pfile)]
+    return []
+
+
+def fix_archiso_deprecated_bootmode(match: re.Match[str], root: Path) -> list[str]:
+    """
+    archiso: "The '<old>' boot mode is deprecated. Use '<new>' instead." ->
+    rewrite profiledef.sh bootmodes to the new names.
+    """
+    pdef = root / "profiledef.sh"
+    if not pdef.exists():
+        return []
+    text = pdef.read_text(encoding="utf-8", errors="replace")
+
+    # Map deprecated names to their replacements
+    replacements = {
+        "bios.syslinux.mbr":            "bios.syslinux",
+        "bios.syslinux.eltorito":       "bios.syslinux",
+        "uefi-x64.systemd-boot.esp":    "uefi.systemd-boot",
+        "uefi-x64.systemd-boot.eltorito": "uefi.systemd-boot",
+    }
+    new_text = text
+    for old, new in replacements.items():
+        new_text = new_text.replace(f'"{old}"', f'"{new}"')
+        new_text = re.sub(rf'\b{re.escape(old)}\b', new, new_text)
+
+    # Deduplicate (if both .mbr and .eltorito were present, we now have duplicates)
+    bm_match = re.search(r'^export bootmodes=\(([^)]+)\)', new_text, re.MULTILINE)
+    if bm_match:
+        items = re.findall(r'"([^"]+)"', bm_match.group(1))
+        # Preserve order, dedupe
+        seen = set()
+        deduped = []
+        for it in items:
+            if it not in seen:
+                seen.add(it)
+                deduped.append(it)
+        new_list = " ".join(f'"{x}"' for x in deduped)
+        new_text = re.sub(
+            r'^export bootmodes=\([^)]+\)',
+            f'export bootmodes=({new_list})',
+            new_text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+
+    if new_text != text:
+        write_file_safe(pdef, new_text)
+        return [str(pdef)]
+    return []
+
+
+def fix_disk_space(match: re.Match[str], root: Path) -> list[str]:
+    """
+    'No space left on device' -> trim package list aggressively.
+    Drop optional heavy packages (libreoffice-fresh, kdenlive, etc.).
+    Only triggers on the EXACT error string, not just the words "disk space".
+    """
+    pfile = root / "packages.x86_64"
+    if not pfile.exists():
+        return []
+    text = pfile.read_text(encoding="utf-8", errors="replace")
+    # Aggressive trim: comment out known heavy optional packages
+    heavy = [
+        "libreoffice-fresh", "libreoffice-fresh-en-gb", "libreoffice-fresh-ar",
+        "calibre", "kdenlive", "obs-studio", "handbrake", "audacity",
+        "qemu", "qemu-desktop", "libvirt", "virt-manager", "virt-viewer",
+        "docker", "docker-buildx", "docker-compose", "podman", "buildah",
+        "jdk-openjdk", "maven", "gradle", "rustup", "go", "nodejs", "npm",
+        "yarn", "pnpm", "pyenv", "thunderbird", "thunderbird-i18n-en-us",
+        "thunderbird-i18n-ar", "chromium", "falkon", "filezilla",
+        "transmission-qt", "qbittorrent", "calibre",
+    ]
+    new_lines = []
+    edited = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            line_pkg = re.split(r"[<>=\s]", stripped, 1)[0]
+            if line_pkg in heavy:
+                new_lines.append(f"# TRIMMED by auto-fix (disk space): {line}")
+                edited = True
+                continue
+        new_lines.append(line)
+    if edited:
+        write_file_safe(pfile, "\n".join(new_lines) + "\n")
+        return [str(pfile)]
     return []
 
 
@@ -206,43 +325,6 @@ def fix_pacman_conf_repo(match: re.Match[str], root: Path) -> list[str]:
     return []
 
 
-def fix_disk_space(match: re.Match[str], root: Path) -> list[str]:
-    """
-    'No space left on device' -> trim package list aggressively.
-    Drop optional heavy packages (libreoffice-fresh, kdenlive, etc.).
-    """
-    pfile = root / "packages.x86_64"
-    if not pfile.exists():
-        return []
-    text = pfile.read_text(encoding="utf-8", errors="replace")
-    # Aggressive trim: comment out known heavy optional packages
-    heavy = [
-        "libreoffice-fresh", "libreoffice-fresh-en-gb", "libreoffice-fresh-ar",
-        "calibre", "kdenlive", "obs-studio", "handbrake", "audacity",
-        "qemu", "qemu-desktop", "libvirt", "virt-manager", "virt-viewer",
-        "docker", "docker-buildx", "docker-compose", "podman", "buildah",
-        "jdk-openjdk", "maven", "gradle", "rustup", "go", "nodejs", "npm",
-        "yarn", "pnpm", "pyenv", "thunderbird", "thunderbird-i18n-en-us",
-        "thunderbird-i18n-ar", "chromium", "falkon", "filezilla",
-        "transmission-qt", "qbittorrent", "calibre",
-    ]
-    new_lines = []
-    edited = False
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped and not stripped.startswith("#"):
-            line_pkg = re.split(r"[<>=\s]", stripped, 1)[0]
-            if line_pkg in heavy:
-                new_lines.append(f"# TRIMMED by auto-fix (disk space): {line}")
-                edited = True
-                continue
-        new_lines.append(line)
-    if edited:
-        write_file_safe(pfile, "\n".join(new_lines) + "\n")
-        return [str(pfile)]
-    return []
-
-
 def fix_docker_pull(match: re.Match[str], root: Path) -> list[str]:
     """
     Docker image pull failure -> retry the pull with --platform and a fallback.
@@ -266,16 +348,43 @@ def fix_apt_package(match: re.Match[str], root: Path) -> list[str]:
 # =============================================================================
 
 RULES: list[Fixer] = [
+    # ---------- archiso-specific errors (most specific, check first) ----------
+    Fixer(
+        name="archiso-missing-boot-package",
+        description="archiso: a required bootloader package is missing from packages.x86_64 -> add it",
+        pattern=re.compile(
+            r"Validating[^:]*:\s*The\s+'(?P<pkg>[\w\-\.+]+)'\s+package\s+is\s+missing\s+from\s+the\s+package\s+list",
+            re.IGNORECASE,
+        ),
+        apply=fix_archiso_missing_package,
+    ),
+    Fixer(
+        name="archiso-deprecated-bootmode",
+        description="archiso: deprecated boot mode name -> rewrite profiledef.sh to use the new name",
+        pattern=re.compile(
+            r"The\s+'(?P<old>bios\.syslinux\.(?:mbr|eltorito)|uefi-x64\.systemd-boot\.(?:esp|eltorito))'\s+boot\s+mode\s+is\s+deprecated",
+            re.IGNORECASE,
+        ),
+        apply=fix_archiso_deprecated_bootmode,
+    ),
     Fixer(
         name="missing-package",
-        description="Archiso: a package in packages.x86_64 is not in the repos -> comment it out",
+        description="pacman: target package not found in repos -> comment it out of packages.x86_64",
         pattern=re.compile(r"error:\s*target not found:\s*(?P<pkg>[\w\-\.@+]+)", re.IGNORECASE),
         apply=fix_missing_package,
     ),
+    # ---------- signature / keyring errors (specific phrases only) ----------
     Fixer(
         name="pacman-keyring",
-        description="Keyring/signature errors -> inject keyring refresh in customize_airootfs.sh",
-        pattern=re.compile(r"(invalid or corrupted package|signature|keyring|PGP signature)", re.IGNORECASE),
+        description="pacman: signature/keyring error -> inject keyring refresh in customize_airootfs.sh",
+        pattern=re.compile(
+            r"(invalid or corrupted package \(PGP signature\)|"
+            r"failed to commit transaction.*invalid or corrupted|"
+            r"error: key \"[A-F0-9]+\" could not be imported|"
+            r"unknown trust|"
+            r"the signature could not be verified)",
+            re.IGNORECASE,
+        ),
         apply=fix_pacman_keyring,
     ),
     Fixer(
@@ -293,7 +402,7 @@ RULES: list[Fixer] = [
     Fixer(
         name="disk-space",
         description="Out of disk space -> trim heavy optional packages",
-        pattern=re.compile(r"No space left on device|disk space", re.IGNORECASE),
+        pattern=re.compile(r"No space left on device", re.IGNORECASE),
         apply=fix_disk_space,
     ),
     Fixer(

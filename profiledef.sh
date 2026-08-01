@@ -12,8 +12,11 @@ export iso_application="NovaOS Live/Install ISO"
 export iso_version="$(date +%Y.%m.%d)"
 export install_dir="novaos"
 export buildmodes=("iso")
-export bootmodes=("bios.syslinux.mbr" "bios.syslinux.eltorito"
-                  "uefi-x64.systemd-boot.esp" "uefi-x64.systemd-boot.eltorito")
+# Boot modes - use the new (non-deprecated) names:
+#   bios.syslinux         (replaces bios.syslinux.mbr + bios.syslinux.eltorito)
+#   uefi.systemd-boot     (replaces uefi-x64.systemd-boot.esp + uefi-x64.systemd-boot.eltorito)
+# Requires: syslinux, edk2-shell, memtest86+-efi in packages.x86_64
+export bootmodes=("bios.syslinux" "uefi.systemd-boot")
 
 # Filesystems and architecture
 export arch="$(uname -m)"
