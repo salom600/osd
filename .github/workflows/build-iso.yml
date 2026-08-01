@@ -111,6 +111,15 @@ jobs:
                 mtools \
                 dosfstools
 
+              echo "=== Building local novaos-repo (empty for now) ==="
+              # Create the novaos-repo BEFORE copying pacman.conf, because
+              # pacman.conf has [novaos] pointing to file:///tmp/novaos-repo/x86_64
+              # and pacman -Syy will fail if that file does not exist.
+              mkdir -p /tmp/novaos-repo/x86_64
+              cd /tmp/novaos-repo/x86_64
+              repo-add novaos.db.tar.gz 2>/dev/null || true
+              cd /novaos
+
               echo "=== Refreshing mirrorlist (fastest HTTPS) ==="
               # Use the hardcoded fallback mirrorlist directly - it contains
               # ultra-reliable CDN-backed mirrors that are always up.
@@ -151,14 +160,6 @@ jobs:
                 fi
               done
               echo "All sanity checks passed - mirrorlist OK."
-
-              echo "=== Building local novaos-repo (empty for now) ==="
-              mkdir -p /tmp/novaos-repo/x86_64
-              cd /tmp/novaos-repo/x86_64
-              # No packages to build yet - this is the placeholder that satisfies
-              # the [novaos] repo entry in pacman.conf
-              repo-add novaos.db.tar.gz 2>/dev/null || true
-              cd /novaos
 
               echo "=== Profile validation ==="
               if [ ! -f profiledef.sh ]; then
