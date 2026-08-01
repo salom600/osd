@@ -136,7 +136,7 @@ jobs:
 
               # Sanity-check: can we find a known package in EACH repo?
               echo "=== Sanity-checking repos ==="
-              for pkg in bash plasma-discover calamares lib32-mesa; do
+              for pkg in bash discover lib32-mesa; do
                 if pacman -Si "$pkg" >/dev/null 2>&1; then
                   echo "  OK: $pkg found"
                 else

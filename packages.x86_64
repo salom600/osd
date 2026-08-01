@@ -178,7 +178,7 @@ plasma-disks
 plasma-firewall
 plasma-thunderbolt
 plasma-vault
-plasma-discover
+discover
 # plasma-discover-backend-flatpak  # merged into plasma-discover
 # plasma-discover-backend-snap  # Plasma 6 dropped Snap support
 kwin
@@ -470,7 +470,7 @@ usbguard
 # - Calamares installer (modern, distro-agnostic)
 # Branding for Calamares is shipped as files under /etc/calamares/branding/novaos/
 # in the airootfs overlay - no separate package needed.
-# REMOVED by auto-fix: calamares  # package not found in repo
+# calamares  # AUR-only - install manually from AUR if needed
 
 ## ---------- Compression / archive ----------
 zstd
