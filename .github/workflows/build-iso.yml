@@ -113,7 +113,9 @@ jobs:
 
               echo "=== Refreshing mirrorlist (fastest HTTPS) ==="
               # Try reflector first. If it fails, fall back to a hardcoded
-              # list of ultra-reliable mirrors (printf-based, no heredoc).
+              # mirrorlist shipped in the repo at scripts/fallback-mirrorlist.
+              # (Using a file avoids single-quote escaping issues in the
+              # docker run bash -c '...' wrapper.)
               if ! reflector \
                   --country us,gb,de,fr,nl,se,jp,sg \
                   --age 12 \
@@ -123,16 +125,7 @@ jobs:
                   --save /etc/pacman.d/mirrorlist 2>/tmp/reflector.err; then
                 echo "WARN: reflector failed - using hardcoded fallback mirrorlist"
                 cat /tmp/reflector.err || true
-                printf '%s\n' \
-                  'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' \
-                  'Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch' \
-                  'Server = https://mirror.leaseweb.net/archlinux/$repo/os/$arch' \
-                  'Server = https://arch.mirror.constant.com/archlinux/$repo/os/$arch' \
-                  'Server = https://mirror.arizona.edu/archlinux/$repo/os/$arch' \
-                  'Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch' \
-                  'Server = https://mirror.pit.teraswitch.com/archlinux/$repo/os/$arch' \
-                  'Server = https://mirror.fcix.net/archlinux/$repo/os/$arch' \
-                  > /etc/pacman.d/mirrorlist
+                cp /novaos/scripts/fallback-mirrorlist /etc/pacman.d/mirrorlist
               fi
               # Verify mirrorlist is non-empty
               if [ ! -s /etc/pacman.d/mirrorlist ]; then

@@ -1,0 +1,12 @@
+# NovaOS fallback mirrorlist - used by build-iso.yml when reflector fails.
+# These are ultra-reliable, geographically-distributed HTTPS mirrors.
+# DO NOT edit unless you know what you're doing - these are the last-resort
+# mirrors that guarantee the build can always download packages.
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch
+Server = https://mirror.leaseweb.net/archlinux/$repo/os/$arch
+Server = https://arch.mirror.constant.com/archlinux/$repo/os/$arch
+Server = https://mirror.arizona.edu/archlinux/$repo/os/$arch
+Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch
+Server = https://mirror.pit.teraswitch.com/archlinux/$repo/os/$arch
+Server = https://mirror.fcix.net/archlinux/$repo/os/$arch
