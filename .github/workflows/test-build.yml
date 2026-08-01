@@ -85,13 +85,18 @@ jobs:
           if ! grep -q '^\[novaos\]' pacman.conf; then
             echo "WARN: [novaos] repo section not found in pacman.conf"
           fi
-          # Check core repos are present
-          for repo in core extra community multilib; do
+          # Check core repos are present.
+          # NOTE: [community] was merged into [extra] in 2023 - do NOT require it.
+          for repo in core extra multilib; do
             if ! grep -q "^\[${repo}\]" pacman.conf; then
               echo "FATAL: [${repo}] repo missing from pacman.conf"
               exit 1
             fi
           done
+          # WARN if [community] is still present (will cause 404s)
+          if grep -q '^\[community\]' pacman.conf; then
+            echo "WARN: [community] repo is present but was merged into [extra] in 2023 - will cause 404s"
+          fi
           echo "pacman.conf OK"
 
       - name: Validate airootfs structure
