@@ -82,10 +82,21 @@ jobs:
           # Create output directories on the host so they survive the container
           mkdir -p "$PWD/work" "$PWD/out" "$PWD/build-logs"
 
+          # Debug: verify the scripts/ directory and its files exist on the host
+          echo "Host PWD: $PWD"
+          echo "Host scripts/ contents:"
+          ls -la "$PWD/scripts/"
+          echo "Host scripts/container-pacman.conf exists:"
+          test -f "$PWD/scripts/container-pacman.conf" && echo "  YES" || echo "  NO"
+          echo "Host scripts/fallback-mirrorlist exists:"
+          test -f "$PWD/scripts/fallback-mirrorlist" && echo "  YES" || echo "  NO"
+
           # Run archiso inside archlinux:latest. We mount the repo + output
           # dirs so the resulting ISO is accessible on the host afterwards.
+          # Use --user 0:0 to run as root inside the container (needed for pacman).
           docker run --rm \
             --privileged \
+            --user 0:0 \
             -v "$PWD:/novaos" \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -w /novaos \
