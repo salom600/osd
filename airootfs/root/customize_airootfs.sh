@@ -34,6 +34,10 @@ systemd-machine-id-setup --root=/ >/dev/null 2>&1 || true
 
 # ---- 3. Create live user `novaos` ----
 echo ">>> Creating live user 'novaos' (UID 1000)..."
+# Create the 'autologin' group if it doesn't exist (needed for SDDM auto-login)
+if ! getent group autologin >/dev/null 2>&1; then
+    groupadd --system autologin 2>/dev/null || true
+fi
 if ! id novaos >/dev/null 2>&1; then
     useradd -m -G wheel,storage,optical,power,video,audio,input,network,lp,autologin -s /bin/bash -u 1000 novaos
     # Default live password is "novaos" - users change on first boot
