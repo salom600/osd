@@ -123,13 +123,11 @@ jobs:
               # Use the hardcoded fallback mirrorlist - ultra-reliable CDN mirrors.
               cp /novaos/scripts/fallback-mirrorlist /etc/pacman.d/mirrorlist
 
-              # Enable [multilib] in the container default pacman.conf by
-              # uncommenting the [multilib] section. We do NOT copy our repo's
-              # pacman.conf here because it has [novaos] pointing to a file://
-              # URL that may cause pacman -Syy to fail. mkarchiso will use our
-              # repo pacman.conf later via the pacman_conf setting in profiledef.sh.
-              sed -i 's/^#\s*\[multilib\]/[multilib]/' /etc/pacman.conf
-              sed -i 's/^#\s*Include\s*=\s*\/etc\/pacman\.d\/mirrorlist/Include = \/etc\/pacman\.d\/mirrorlist/' /etc/pacman.conf
+              # Install a clean /etc/pacman.conf with [core], [extra], [multilib].
+              # We ship this as a file in the repo to avoid heredoc/quoting issues
+              # inside the bash -c '...' wrapper. No [novaos] repo here - that's
+              # only needed by mkarchiso later via our repo pacman.conf.
+              cp /novaos/scripts/container-pacman.conf /etc/pacman.conf
 
               # Verify mirrorlist is non-empty
               if [ ! -s /etc/pacman.d/mirrorlist ]; then
