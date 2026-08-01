@@ -51,7 +51,7 @@ dmidecode
 lshw
 hwdata
 inxi
-neofetch
+# REMOVED by auto-fix: neofetch  # package not found in repo
 fastfetch
 htop
 btop
