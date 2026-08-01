@@ -23,10 +23,6 @@ on:
         description: 'Git ref to build from (defaults to current branch)'
         required: false
         default: ''
-      profile:
-        description: 'Archiso profile to build'
-        required: false
-        default: 'releng'
 
 concurrency:
   group: build-iso-${{ github.ref }}
@@ -40,15 +36,21 @@ jobs:
   build:
     name: Build ISO (x86_64)
     runs-on: ubuntu-22.04
+    # Run the ENTIRE job inside an archlinux:latest container.
+    # This avoids Docker-in-Docker volume mount issues and gives us
+    # a real Arch Linux environment with pacman + archiso.
+    # --privileged is needed for mkarchiso (loop devices, mount, mksquashfs).
+    container:
+      image: archlinux:latest
+      options: --privileged
     timeout-minutes: 180
     permissions:
       contents: write
       actions: read
-      packages: write
 
     steps:
       # ----------------------------------------------------------------------
-      # 1. Checkout
+      # 1. Checkout (into the Arch container's filesystem - no volume mount)
       # ----------------------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -57,144 +59,102 @@ jobs:
           fetch-depth: 0
 
       # ----------------------------------------------------------------------
-      # 2. Prepare build environment on the Ubuntu runner
+      # 2. Install archiso + base deps in the Arch container
       # ----------------------------------------------------------------------
-      - name: Install host build deps
+      - name: Install archiso and base dependencies
         run: |
           set -euo pipefail
-          sudo apt-get update -y
-          sudo apt-get install -y --no-install-recommends \
+          echo "=== Bootstrap pacman keyring ==="
+          pacman-key --init
+          pacman-key --populate archlinux
+
+          echo "=== Installing archiso + helpers ==="
+          pacman -Sy --noconfirm --needed \
+            archiso \
+            git \
+            reflector \
+            pacman-contrib \
+            sudo \
+            bash \
             squashfs-tools \
-            xorriso \
+            libisoburn \
             mtools \
             dosfstools \
-            archiso \
-            || sudo apt-get install -y --no-install-recommends \
-                 squashfs-tools xorriso mtools dosfstools
+            python \
+            python-pip \
+            openssh
 
       # ----------------------------------------------------------------------
-      # 3. Build inside an Arch Linux container (real archiso)
+      # 3. Set up mirrorlist + pacman config
       # ----------------------------------------------------------------------
-      - name: Build NovaOS ISO in Arch container
-        id: archiso_build
-        env:
-          # GITHUB_WORKSPACE is the canonical path to the checked-out repo
-          # on the GitHub Actions runner. Using it (instead of $PWD) ensures
-          # Docker volume mounts work correctly with Docker-in-Docker.
-          REPO_ROOT: ${{ github.workspace }}
+      - name: Configure mirrorlist and pacman
         run: |
           set -euo pipefail
-          # Create output directories on the host so they survive the container
-          mkdir -p "$REPO_ROOT/work" "$REPO_ROOT/out" "$REPO_ROOT/build-logs"
 
-          # Debug: verify the scripts/ directory and its files exist on the host
-          echo "Host REPO_ROOT: $REPO_ROOT"
-          echo "Host scripts/ contents:"
-          ls -la "$REPO_ROOT/scripts/"
+          echo "=== Setting up mirrorlist ==="
+          # Use the hardcoded fallback mirrorlist - ultra-reliable CDN mirrors.
+          cp scripts/fallback-mirrorlist /etc/pacman.d/mirrorlist
 
-          # Run archiso inside archlinux:latest. We mount the repo + output
-          # dirs so the resulting ISO is accessible on the host afterwards.
-          # Use --user 0:0 to run as root inside the container (needed for pacman).
-          docker run --rm \
-            --privileged \
-            --user 0:0 \
-            -v "$REPO_ROOT:/novaos" \
-            -w /novaos \
-            archlinux:latest \
-            bash -eu -c '
-              set -euo pipefail
+          echo "=== Setting up pacman.conf ==="
+          # Install a clean /etc/pacman.conf with [core], [extra], [multilib].
+          # No [novaos] repo here - that's only needed by mkarchiso later
+          # via our repo pacman.conf.
+          cp scripts/container-pacman.conf /etc/pacman.conf
 
-              echo "=== Installing archiso + base deps in container ==="
-              # Bootstrap pacman keyring
-              pacman-key --init
-              pacman-key --populate archlinux
+          # Verify
+          echo "Mirrorlist:"
+          cat /etc/pacman.d/mirrorlist
+          echo "---"
+          echo "Enabled repos:"
+          grep -E '^\[' /etc/pacman.conf
 
-              # Install archiso + helpers
-              pacman -Sy --noconfirm --needed \
-                archiso \
-                git \
-                reflector \
-                pacman-contrib \
-                sudo \
-                bash \
-                squashfs-tools \
-                libisoburn \
-                mtools \
-                dosfstools
+          # Force a fresh db sync
+          echo "=== Syncing pacman databases ==="
+          pacman -Syy --noconfirm || { echo "FATAL: pacman -Syy failed"; exit 1; }
 
-              echo "=== Building local novaos-repo (empty for now) ==="
-              # Create the novaos-repo BEFORE mkarchiso runs (it needs this
-              # because our pacman.conf has [novaos] pointing here).
-              mkdir -p /tmp/novaos-repo/x86_64
-              cd /tmp/novaos-repo/x86_64
-              repo-add novaos.db.tar.gz 2>/dev/null || true
-              cd /novaos
-
-              echo "=== Setting up mirrorlist + pacman config ==="
-              # Debug: list what's in /novaos/scripts/ to verify files are mounted
-              echo "Files in /novaos/scripts/:"
-              ls -la /novaos/scripts/
-
-              # Use the hardcoded fallback mirrorlist - ultra-reliable CDN mirrors.
-              cp /novaos/scripts/fallback-mirrorlist /etc/pacman.d/mirrorlist
-
-              # Install a clean /etc/pacman.conf with [core], [extra], [multilib].
-              # We ship this as a file in the repo to avoid heredoc/quoting issues
-              # inside the bash -c '...' wrapper. No [novaos] repo here - that's
-              # only needed by mkarchiso later via our repo pacman.conf.
-              cp /novaos/scripts/container-pacman.conf /etc/pacman.conf
-
-              # Verify mirrorlist is non-empty
-              if [ ! -s /etc/pacman.d/mirrorlist ]; then
-                echo "FATAL: mirrorlist is empty"
-                exit 1
-              fi
-              echo "Mirrorlist ($(wc -l < /etc/pacman.d/mirrorlist) entries):"
-              cat /etc/pacman.d/mirrorlist
-              echo "---"
-              echo "Enabled repos in /etc/pacman.conf:"
-              grep -E '^\[' /etc/pacman.conf
-
-              # Force a fresh db sync. Use -Syy to force download even if
-              # caches appear fresh. NOTE: avoid single quotes - the entire
-              # script runs inside bash -c '...' so inner single quotes
-              # would terminate the wrapper.
-              echo "=== Syncing pacman databases ==="
-              pacman -Syy --noconfirm || { echo "FATAL: pacman -Syy failed"; exit 1; }
-
-              # Sanity-check: can we find a known package in EACH repo?
-              echo "=== Sanity-checking repos ==="
-              for pkg in bash discover lib32-mesa; do
-                if pacman -Si "$pkg" >/dev/null 2>&1; then
-                  echo "  OK: $pkg found"
-                else
-                  echo "  FAIL: $pkg NOT found - mirrorlist or db sync is broken"
-                  exit 1
-                fi
-              done
-              echo "All sanity checks passed - mirrorlist OK."
-
-              echo "=== Profile validation ==="
-              if [ ! -f profiledef.sh ]; then
-                echo "FATAL: profiledef.sh missing"
-                exit 1
-              fi
-              if [ ! -f packages.x86_64 ]; then
-                echo "FATAL: packages.x86_64 missing"
-                exit 1
-              fi
-
-              echo "=== Running mkarchiso ==="
-              # mkarchiso writes to ./work and ./out by default
-              # We capture full output to a log file for the auto-fix workflow.
-              mkarchiso -v -w /novaos/work -o /novaos/out . 2>&1 | tee /novaos/build-logs/mkarchiso.log
-
-              echo "=== Build complete ==="
-              ls -la /novaos/out/
-            '
+          # Sanity-check: can we find a known package in EACH repo?
+          echo "=== Sanity-checking repos ==="
+          for pkg in bash discover lib32-mesa; do
+            if pacman -Si "$pkg" >/dev/null 2>&1; then
+              echo "  OK: $pkg found"
+            else
+              echo "  FAIL: $pkg NOT found"
+              exit 1
+            fi
+          done
+          echo "All sanity checks passed."
 
       # ----------------------------------------------------------------------
-      # 4. Verify the ISO exists and compute checksums
+      # 4. Build the local novaos-repo (empty placeholder)
+      # ----------------------------------------------------------------------
+      - name: Create local novaos-repo
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/novaos-repo/x86_64
+          cd /tmp/novaos-repo/x86_64
+          repo-add novaos.db.tar.gz 2>/dev/null || true
+
+      # ----------------------------------------------------------------------
+      # 5. Run mkarchiso
+      # ----------------------------------------------------------------------
+      - name: Build NovaOS ISO
+        id: archiso_build
+        run: |
+          set -euo pipefail
+          mkdir -p work out build-logs
+
+          echo "=== Profile validation ==="
+          test -f profiledef.sh || { echo "FATAL: profiledef.sh missing"; exit 1; }
+          test -f packages.x86_64 || { echo "FATAL: packages.x86_64 missing"; exit 1; }
+
+          echo "=== Running mkarchiso ==="
+          mkarchiso -v -w "$(pwd)/work" -o "$(pwd)/out" . 2>&1 | tee build-logs/mkarchiso.log
+
+          echo "=== Build complete ==="
+          ls -la out/
+
+      # ----------------------------------------------------------------------
+      # 6. Verify the ISO exists and compute checksums
       # ----------------------------------------------------------------------
       - name: Verify ISO and compute SHA256
         id: verify
@@ -213,7 +173,7 @@ jobs:
           cat "$ISO.sha256"
 
       # ----------------------------------------------------------------------
-      # 5. Upload build logs as artifact (for debugging + auto-fix)
+      # 7. Upload build logs as artifact (for debugging + auto-fix)
       # ----------------------------------------------------------------------
       - name: Upload build logs
         if: always()
@@ -222,12 +182,11 @@ jobs:
           name: novaos-build-logs-${{ github.run_id }}
           path: |
             build-logs/
-            work/build.log
           retention-days: 30
           if-no-files-found: ignore
 
       # ----------------------------------------------------------------------
-      # 6. Upload the ISO as artifact (always)
+      # 8. Upload the ISO as artifact (always)
       # ----------------------------------------------------------------------
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
@@ -240,7 +199,7 @@ jobs:
           if-no-files-found: error
 
       # ----------------------------------------------------------------------
-      # 7. On tag push, create a GitHub Release with the ISO
+      # 9. On tag push, create a GitHub Release with the ISO
       # ----------------------------------------------------------------------
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -268,15 +227,13 @@ jobs:
             ```sh
             sha256sum -c novaos-*.iso.sha256
             ```
-
-            Built on ${{ github.run_id }}.
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # ----------------------------------------------------------------------
-      # 8. (Optional) Push ISO to GitHub Packages / Releases
+      # 10. Summary
       # ----------------------------------------------------------------------
       - name: Summary
         if: always()
