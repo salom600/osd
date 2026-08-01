@@ -112,26 +112,24 @@ jobs:
                 dosfstools
 
               echo "=== Building local novaos-repo (empty for now) ==="
-              # Create the novaos-repo BEFORE copying pacman.conf, because
-              # pacman.conf has [novaos] pointing to file:///tmp/novaos-repo/x86_64
-              # and pacman -Syy will fail if that file does not exist.
+              # Create the novaos-repo BEFORE mkarchiso runs (it needs this
+              # because our pacman.conf has [novaos] pointing here).
               mkdir -p /tmp/novaos-repo/x86_64
               cd /tmp/novaos-repo/x86_64
               repo-add novaos.db.tar.gz 2>/dev/null || true
               cd /novaos
 
-              echo "=== Refreshing mirrorlist (fastest HTTPS) ==="
-              # Use the hardcoded fallback mirrorlist directly - it contains
-              # ultra-reliable CDN-backed mirrors that are always up.
-              # Reflector is too unreliable in CI (timeouts, 403s, empty
-              # mirrorlists that silently break the db sync).
+              echo "=== Setting up mirrorlist + pacman config ==="
+              # Use the hardcoded fallback mirrorlist - ultra-reliable CDN mirrors.
               cp /novaos/scripts/fallback-mirrorlist /etc/pacman.d/mirrorlist
 
-              # Install our repo's pacman.conf as the container's pacman.conf.
-              # This ensures [multilib] is enabled (the archlinux:latest Docker
-              # image has it commented out by default, which causes lib32-*
-              # packages to be "target not found").
-              cp /novaos/pacman.conf /etc/pacman.conf
+              # Enable [multilib] in the container default pacman.conf by
+              # uncommenting the [multilib] section. We do NOT copy our repo's
+              # pacman.conf here because it has [novaos] pointing to a file://
+              # URL that may cause pacman -Syy to fail. mkarchiso will use our
+              # repo pacman.conf later via the pacman_conf setting in profiledef.sh.
+              sed -i 's/^#\s*\[multilib\]/[multilib]/' /etc/pacman.conf
+              sed -i 's/^#\s*Include\s*=\s*\/etc\/pacman\.d\/mirrorlist/Include = \/etc\/pacman\.d\/mirrorlist/' /etc/pacman.conf
 
               # Verify mirrorlist is non-empty
               if [ ! -s /etc/pacman.d/mirrorlist ]; then
@@ -140,14 +138,16 @@ jobs:
               fi
               echo "Mirrorlist ($(wc -l < /etc/pacman.d/mirrorlist) entries):"
               cat /etc/pacman.d/mirrorlist
+              echo "---"
+              echo "Enabled repos in /etc/pacman.conf:"
+              grep -E '^\[' /etc/pacman.conf
 
-              # Force a fresh db sync now that we have a good mirrorlist.
-              # Use -Syy (double y) to force fresh db download even if
-              # caches appear fresh. NOTE: avoid single quotes in this
-              # command - the entire script runs inside bash -c '...'
-              # so inner single quotes would terminate the wrapper.
+              # Force a fresh db sync. Use -Syy to force download even if
+              # caches appear fresh. NOTE: avoid single quotes - the entire
+              # script runs inside bash -c '...' so inner single quotes
+              # would terminate the wrapper.
               echo "=== Syncing pacman databases ==="
-              pacman -Syy --noconfirm 2>&1 | tail -20
+              pacman -Syy --noconfirm || { echo "FATAL: pacman -Syy failed"; exit 1; }
 
               # Sanity-check: can we find a known package in EACH repo?
               echo "=== Sanity-checking repos ==="
