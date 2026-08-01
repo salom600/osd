@@ -1,0 +1,16 @@
+{
+  "applied": true,
+  "summary": "disk-space: Out of disk space -> trim heavy optional packages",
+  "patches": [
+    {
+      "rule": "disk-space",
+      "files": [
+        "packages.x86_64"
+      ]
+    }
+  ],
+  "rules_matched": [
+    "pacman-keyring",
+    "disk-space"
+  ]
+}

@@ -222,7 +222,7 @@ kaddressbook
 kalendar
 elisa
 dragon
-kdenlive
+# TRIMMED by auto-fix (disk space): kdenlive
 kolourpaint
 kruler
 kmag
@@ -257,14 +257,14 @@ adobe-source-serif-fonts
 firefox
 firefox-i18n-en-us
 firefox-i18n-ar
-chromium
-falkon
-filezilla
-transmission-qt
-qbittorrent
-thunderbird
-thunderbird-i18n-en-us
-thunderbird-i18n-ar
+# TRIMMED by auto-fix (disk space): chromium
+# TRIMMED by auto-fix (disk space): falkon
+# TRIMMED by auto-fix (disk space): filezilla
+# TRIMMED by auto-fix (disk space): transmission-qt
+# TRIMMED by auto-fix (disk space): qbittorrent
+# TRIMMED by auto-fix (disk space): thunderbird
+# TRIMMED by auto-fix (disk space): thunderbird-i18n-en-us
+# TRIMMED by auto-fix (disk space): thunderbird-i18n-ar
 networkmanager-openvpn
 networkmanager-vpnc
 networkmanager-strongswan
@@ -284,18 +284,18 @@ gst-plugins-ugly
 gst-libav
 pulseeffects
 easyeffects
-kdenlive
-obs-studio
-handbrake
-audacity
+# TRIMMED by auto-fix (disk space): kdenlive
+# TRIMMED by auto-fix (disk space): obs-studio
+# TRIMMED by auto-fix (disk space): handbrake
+# TRIMMED by auto-fix (disk space): audacity
 k3b
 brasero
 
 ## ---------- Office & documents ----------
-libreoffice-fresh
-libreoffice-fresh-en-gb
-libreoffice-fresh-ar
-calibre
+# TRIMMED by auto-fix (disk space): libreoffice-fresh
+# TRIMMED by auto-fix (disk space): libreoffice-fresh-en-gb
+# TRIMMED by auto-fix (disk space): libreoffice-fresh-ar
+# TRIMMED by auto-fix (disk space): calibre
 evince
 poppler
 poppler-glib
@@ -380,21 +380,21 @@ python
 python-pip
 python-setuptools
 python-virtualenv
-pyenv
-nodejs
-npm
-yarn
-pnpm
-rustup
-go
-jdk-openjdk
-maven
-gradle
-docker
-docker-buildx
-docker-compose
-podman
-buildah
+# TRIMMED by auto-fix (disk space): pyenv
+# TRIMMED by auto-fix (disk space): nodejs
+# TRIMMED by auto-fix (disk space): npm
+# TRIMMED by auto-fix (disk space): yarn
+# TRIMMED by auto-fix (disk space): pnpm
+# TRIMMED by auto-fix (disk space): rustup
+# TRIMMED by auto-fix (disk space): go
+# TRIMMED by auto-fix (disk space): jdk-openjdk
+# TRIMMED by auto-fix (disk space): maven
+# TRIMMED by auto-fix (disk space): gradle
+# TRIMMED by auto-fix (disk space): docker
+# TRIMMED by auto-fix (disk space): docker-buildx
+# TRIMMED by auto-fix (disk space): docker-compose
+# TRIMMED by auto-fix (disk space): podman
+# TRIMMED by auto-fix (disk space): buildah
 skopeo
 
 ## ---------- Input methods (multilingual incl. Arabic) ----------
@@ -439,11 +439,11 @@ mbpfan
 thermald
 
 ## ---------- Virtualization (optional, useful for testers) ----------
-qemu
-qemu-desktop
-libvirt
-virt-manager
-virt-viewer
+# TRIMMED by auto-fix (disk space): qemu
+# TRIMMED by auto-fix (disk space): qemu-desktop
+# TRIMMED by auto-fix (disk space): libvirt
+# TRIMMED by auto-fix (disk space): virt-manager
+# TRIMMED by auto-fix (disk space): virt-viewer
 ebtables
 dnsmasq
 bridge-utils
