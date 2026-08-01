@@ -118,6 +118,12 @@ jobs:
               # mirrorlists that silently break the db sync).
               cp /novaos/scripts/fallback-mirrorlist /etc/pacman.d/mirrorlist
 
+              # Install our repo's pacman.conf as the container's pacman.conf.
+              # This ensures [multilib] is enabled (the archlinux:latest Docker
+              # image has it commented out by default, which causes lib32-*
+              # packages to be "target not found").
+              cp /novaos/pacman.conf /etc/pacman.conf
+
               # Verify mirrorlist is non-empty
               if [ ! -s /etc/pacman.d/mirrorlist ]; then
                 echo "FATAL: mirrorlist is empty"
