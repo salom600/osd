@@ -45,7 +45,7 @@ pacman-contrib
 archlinux-keyring
 archiso
 reflector
-spectre-meltdown-checker
+# REMOVED by auto-fix: spectre-meltdown-checker  # package not found in repo
 smartmontools
 dmidecode
 lshw
