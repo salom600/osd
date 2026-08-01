@@ -77,19 +77,20 @@ jobs:
       # ----------------------------------------------------------------------
       - name: Build NovaOS ISO in Arch container
         id: archiso_build
+        env:
+          # GITHUB_WORKSPACE is the canonical path to the checked-out repo
+          # on the GitHub Actions runner. Using it (instead of $PWD) ensures
+          # Docker volume mounts work correctly with Docker-in-Docker.
+          REPO_ROOT: ${{ github.workspace }}
         run: |
           set -euo pipefail
           # Create output directories on the host so they survive the container
-          mkdir -p "$PWD/work" "$PWD/out" "$PWD/build-logs"
+          mkdir -p "$REPO_ROOT/work" "$REPO_ROOT/out" "$REPO_ROOT/build-logs"
 
           # Debug: verify the scripts/ directory and its files exist on the host
-          echo "Host PWD: $PWD"
+          echo "Host REPO_ROOT: $REPO_ROOT"
           echo "Host scripts/ contents:"
-          ls -la "$PWD/scripts/"
-          echo "Host scripts/container-pacman.conf exists:"
-          test -f "$PWD/scripts/container-pacman.conf" && echo "  YES" || echo "  NO"
-          echo "Host scripts/fallback-mirrorlist exists:"
-          test -f "$PWD/scripts/fallback-mirrorlist" && echo "  YES" || echo "  NO"
+          ls -la "$REPO_ROOT/scripts/"
 
           # Run archiso inside archlinux:latest. We mount the repo + output
           # dirs so the resulting ISO is accessible on the host afterwards.
@@ -97,8 +98,7 @@ jobs:
           docker run --rm \
             --privileged \
             --user 0:0 \
-            -v "$PWD:/novaos" \
-            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$REPO_ROOT:/novaos" \
             -w /novaos \
             archlinux:latest \
             bash -eu -c '
