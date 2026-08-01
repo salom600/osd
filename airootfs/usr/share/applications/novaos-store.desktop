@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=NovaOS Store
+Name[ar]=متجر نوفا
+Comment=Browse and install apps (Flatpak, pacman, AUR)
+Comment[ar]=تصفح وتثبيت التطبيقات (Flatpak و pacman و AUR)
+Exec=/usr/bin/novaos-store
+Icon=novaos-store
+Terminal=false
+Categories=System;PackageManager;
+StartupNotify=true

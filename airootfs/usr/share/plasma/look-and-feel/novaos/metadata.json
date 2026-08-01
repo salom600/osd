@@ -1,0 +1,27 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "novaos@salom600.osd",
+                "Name": "NovaOS Project"
+            }
+        ],
+        "Category": "GNU/Linux",
+        "Description": "NovaOS Aurora - modern glassmorphism desktop with animated backgrounds, transparent panels, and a Windows 11 / macOS-inspired start menu.",
+        "Description[ar]": "نظام نوفا - سطح مكتب زجاجي حديث بخلفيات متحركة ولوحات شفافة وقائمة ابدأ عصرية.",
+        "Id": "novaos",
+        "License": "CC-BY-SA-4.0",
+        "Name": "NovaOS Aurora",
+        "Name[ar]": "نوفا أورورا",
+        "ServiceTypes": [
+            "Plasma/LookAndFeel"
+        ],
+        "Version": "2026.01",
+        "Website": "https://github.com/salom600/osd"
+    },
+    "X-KDE-ConfigModule": "plasma_shell_org.kde.plasma.lookandfeel",
+    "X-Plasma-Provides": [
+        "org.kde.plasma.lookandfeel"
+    ]
+}

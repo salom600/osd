@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Install NovaOS
+Name[ar]=تثبيت نوفا
+Comment=Install NovaOS to your hard disk
+Comment[ar]=تثبيت نوفا على القرص الصلب
+Exec=/usr/bin/novaos-installer
+Icon=novaos-installer
+Terminal=false
+Categories=System;Installer;
+StartupNotify=true
+X-AppStream-Ignore=true

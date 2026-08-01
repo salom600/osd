@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# =============================================================================
+# novaos-installer - One-click installer launcher
+# =============================================================================
+# Wrapper around Calamares with NovaOS branding. Detects whether we're on
+# a UEFI or BIOS system and passes appropriate flags.
+#
+set -euo pipefail
+
+# Calamares is the actual installer; we just launch it with NovaOS branding.
+if ! command -v calamares >/dev/null 2>&1; then
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -u critical -i dialog-error \
+            "NovaOS Installer" \
+            "Calamares is not installed.\nPlease install: sudo pacman -S calamares"
+    fi
+    echo "ERROR: Calamares is not installed." >&2
+    exit 1
+fi
+
+# Detect firmware type
+if [ -d /sys/firmware/efi ]; then
+    FIRMWARE="UEFI"
+else
+    FIRMWARE="BIOS"
+fi
+
+# Show a friendly notification
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send -i novaos-installer \
+        "NovaOS Installer" \
+        "Starting Calamares ($FIRMWARE mode) — follow the steps to install NovaOS to your disk."
+fi
+
+# Launch Calamares with NovaOS branding config
+exec calamares -c novaos -d 2>&1 | tee /var/log/novaos/installer.log

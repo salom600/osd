@@ -1,0 +1,41 @@
+[Theme]
+Name=NovaOS
+Name[ar]=نوفا
+Comment=NovaOS - modern glassmorphism desktop
+Comment[ar]=نظام نوفا - سطح مكتب زجاجي حديث
+X-KDE-PluginInfo-Author=NovaOS Project
+X-KDE-PluginInfo-Category=GNU/Linux
+X-KDE-PluginInfo-Depends=
+X-KDE-PluginInfo-Email=novaos@salom600.osd
+X-KDE-PluginInfo-EnabledByDefault=true
+X-KDE-PluginInfo-License=CC-BY-SA-4.0
+X-KDE-PluginInfo-Name=novaos
+X-KDE-PluginInfo-Version=2026.01
+X-KDE-PluginInfo-Website=https://github.com/salom600/osd
+
+# Defaults - these match the global LookAndFeel settings
+X-KDE-PluginInfo-ParentTheme=
+X-Plasma-API=
+X-KDE-Fallbacktheme=default
+
+# Wallpapers
+WallpaperPath=/usr/share/wallpapers/NovaOS/contents/images/1920x1080.png
+
+# Color scheme
+ColorScheme=NovaOS
+
+# Plasma theme
+WidgetStyle=Breeze
+
+# Icon theme
+IconsTheme=novaos
+
+# Cursor theme
+CursorTheme=Bibata-Modern-Classic
+
+# Window decoration (KWin)
+WindowDecoration=novaos
+
+# Font
+Font=Noto Sans,10,-1,5,50,0,0,0,0,0
+FixedFont=Noto Sans Mono,10,-1,5,50,0,0,0,0,0

@@ -1,0 +1,6 @@
+#
+# /etc/sudoers.d/novaos-wheel - wheel group passwordless sudo (live ISO only)
+#
+# On a real install, NovaOS-Firstboot will tighten this to require a password.
+#
+%wheel  ALL=(ALL:ALL) NOPASSWD: ALL

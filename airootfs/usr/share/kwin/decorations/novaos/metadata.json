@@ -1,0 +1,27 @@
+{
+    "KPackageStructure": "KWin/Decoration",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "novaos@salom600.osd",
+                "Name": "NovaOS Project"
+            }
+        ],
+        "Category": "Window Decoration",
+        "Description": "NovaOS Aurora - glassmorphism window decoration with adaptive transparency, rounded corners, and a violet accent.",
+        "Description[ar]": "زخرفة نوافذ نوفا - زجاجية مع شفافية تكيفية وزوايا مدورة ولمسة بنفسجية.",
+        "Id": "novaos",
+        "License": "CC-BY-SA-4.0",
+        "Name": "NovaOS Aurora",
+        "Name[ar]": "نوفا أورورا",
+        "ServiceTypes": [
+            "KWin/Decoration"
+        ],
+        "Version": "2026.01",
+        "Website": "https://github.com/salom600/osd"
+    },
+    "org.kde.kdecoration2": {
+        "defaultTheme": "novaos",
+        "kcmodule": "true"
+    }
+}

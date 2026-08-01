@@ -1,0 +1,52 @@
+/*
+ * NovaOS Aurora - KWin window decoration config
+ * ----------------------------------------------
+ * Configurable options exposed in System Settings -> Window Decorations.
+ * Defaults are tuned for the "glass + violet" NovaOS look.
+ */
+
+import QtQuick 2.15
+import QtQuick.Controls 2.15 as QQC2
+import QtQuick.Layouts 1.15
+import org.kde.kirigami 2.20 as Kirigami
+import org.kde.kcmutils as KCM
+
+KCM.SimpleKCM {
+    id: root
+    Kirigami.FormLayout {
+        anchors.fill: parent
+
+        QQC2.CheckBox {
+            Kirigami.FormData.label: "Glass blur:"
+            checked: kcm.settings.glassBlur
+            onToggled: kcm.settings.glassBlur = checked
+            text: "Enable blur behind window"
+        }
+        QQC2.CheckBox {
+            checked: kcm.settings.adaptiveTransparency
+            onToggled: kcm.settings.adaptiveTransparency = checked
+            text: "Increase opacity when window is focused"
+        }
+        QQC2.SpinBox {
+            Kirigami.FormData.label: "Background opacity:"
+            from: 30; to: 100; value: kcm.settings.backgroundOpacity
+            onValueModified: kcm.settings.backgroundOpacity = value
+            textFromValue: function(value) { return value + "%" }
+        }
+        QQC2.SpinBox {
+            Kirigami.FormData.label: "Corner radius:"
+            from: 0; to: 24; value: kcm.settings.cornerRadius
+            onValueModified: kcm.settings.cornerRadius = value
+        }
+        QQC2.CheckBox {
+            Kirigami.FormData.label: "Window shadow:"
+            checked: kcm.settings.windowShadow
+            onToggled: kcm.settings.windowShadow = checked
+        }
+        QQC2.CheckBox {
+            checked: kcm.settings.animateTransitions
+            onToggled: kcm.settings.animateTransitions = checked
+            text: "Animate state changes"
+        }
+    }
+}

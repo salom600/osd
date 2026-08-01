@@ -1,0 +1,23 @@
+[Theme]
+Name=NovaOS
+Name[ar]=نوفا
+Comment=NovaOS Plasma theme - glassmorphism, transparent panels, animated widgets
+Comment[ar]=ثيم نوفا - زجاجية، ألواح شفافة، عنادر ويدجت متحركة
+X-KDE-PluginInfo-Author=NovaOS Project
+X-KDE-PluginInfo-Category=Plasma Theme
+X-KDE-PluginInfo-Depends=
+X-KDE-PluginInfo-Email=novaos@salom600.osd
+X-KDE-PluginInfo-EnabledByDefault=true
+X-KDE-PluginInfo-License=CC-BY-SA-4.0
+X-KDE-PluginInfo-Name=novaos
+X-KDE-PluginInfo-Version=2026.01
+X-KDE-PluginInfo-Website=https://github.com/salom600/osd
+X-Plasma-API=5.0
+
+# Default opacity / radius for plasma panels (used by widgets/panel-background.svg)
+# When SVG is absent, Plasma falls back to these values.
+panelOpacity=0.72
+panelBlur=true
+cornerRadius=14
+shadowStrength=120
+shadowSize=64

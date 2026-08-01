@@ -1,0 +1,184 @@
+# =============================================================================
+# NovaOS - Pre-build validation (fast tests on every push/PR)
+# =============================================================================
+# Runs fast checks (no actual ISO build) to catch obvious issues before
+# the expensive build-iso.yml job fires. Failures here also feed the
+# auto-fix workflow.
+# =============================================================================
+
+name: Validate Build Files
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'packages.x86_64'
+      - 'profiledef.sh'
+      - 'pacman.conf'
+      - 'airootfs/**'
+      - 'efiboot/**'
+      - 'syslinux/**'
+      - '.github/workflows/**'
+      - 'scripts/**'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate archiso profile
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # ----------------------------------------------------------------------
+      # 1. Syntax checks
+      # ----------------------------------------------------------------------
+      - name: Validate profiledef.sh
+        run: |
+          set -euo pipefail
+          if [ ! -f profiledef.sh ]; then
+            echo "FATAL: profiledef.sh missing"
+            exit 1
+          fi
+          bash -n profiledef.sh
+          # Source and check required variables
+          source profiledef.sh
+          for var in iso_name iso_label iso_publisher iso_application iso_version install_dir arch; do
+            if [ -z "${!var:-}" ]; then
+              echo "FATAL: profiledef.sh is missing required variable: $var"
+              exit 1
+            fi
+          done
+          echo "profiledef.sh OK"
+
+      - name: Validate packages.x86_64
+        run: |
+          set -euo pipefail
+          if [ ! -f packages.x86_64 ]; then
+            echo "FATAL: packages.x86_64 missing"
+            exit 1
+          fi
+          # Strip comments and blank lines, check there's at least one package
+          PKG_COUNT=$(grep -vE '^\s*#' packages.x86_64 | grep -vE '^\s*$' | wc -l)
+          if [ "$PKG_COUNT" -lt 10 ]; then
+            echo "FATAL: packages.x86_64 has only $PKG_COUNT packages (expected >= 10)"
+            exit 1
+          fi
+          echo "packages.x86_64 OK ($PKG_COUNT packages)"
+
+      - name: Validate pacman.conf
+        run: |
+          set -euo pipefail
+          if [ ! -f pacman.conf ]; then
+            echo "FATAL: pacman.conf missing"
+            exit 1
+          fi
+          # Check the [novaos] repo entry is present
+          if ! grep -q '^\[novaos\]' pacman.conf; then
+            echo "WARN: [novaos] repo section not found in pacman.conf"
+          fi
+          # Check core repos are present
+          for repo in core extra community multilib; do
+            if ! grep -q "^\[${repo}\]" pacman.conf; then
+              echo "FATAL: [${repo}] repo missing from pacman.conf"
+              exit 1
+            fi
+          done
+          echo "pacman.conf OK"
+
+      - name: Validate airootfs structure
+        run: |
+          set -euo pipefail
+          REQUIRED=(
+            airootfs/root/customize_airootfs.sh
+            airootfs/etc/hostname
+            airootfs/etc/hosts
+            airootfs/etc/locale.conf
+            airootfs/etc/os-release
+          )
+          for f in "${REQUIRED[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "FATAL: required file missing: $f"
+              exit 1
+            fi
+          done
+          # Bash syntax check on customize_airootfs.sh
+          bash -n airootfs/root/customize_airootfs.sh
+          # All scripts in /usr/bin must be valid bash
+          for s in airootfs/usr/bin/novaos-*; do
+            if [ -f "$s" ]; then
+              bash -n "$s" || { echo "SYNTAX ERROR in $s"; exit 1; }
+            fi
+          done
+          echo "airootfs OK"
+
+      - name: Validate SDDM theme
+        run: |
+          set -euo pipefail
+          if [ ! -f airootfs/usr/share/sddm/themes/novaos/Main.qml ]; then
+            echo "FATAL: SDDM Main.qml missing"
+            exit 1
+          fi
+          if [ ! -f airootfs/usr/share/sddm/themes/novaos/theme.conf ]; then
+            echo "FATAL: SDDM theme.conf missing"
+            exit 1
+          fi
+          # Quick sanity: theme.conf must have at least 5 keys
+          KEYS=$(grep -cE '^[a-zA-Z]+=' airootfs/usr/share/sddm/themes/novaos/theme.conf || true)
+          if [ "$KEYS" -lt 5 ]; then
+            echo "FATAL: SDDM theme.conf has too few keys ($KEYS)"
+            exit 1
+          fi
+          echo "SDDM theme OK"
+
+      - name: Validate workflows
+        run: |
+          set -euo pipefail
+          pip install --no-cache-dir pyyaml
+          python3 - <<'EOF'
+          import yaml, os, sys
+          wf_dir = '.github/workflows'
+          if not os.path.isdir(wf_dir):
+              print("FATAL: no workflows dir"); sys.exit(1)
+          ok = True
+          for f in os.listdir(wf_dir):
+              if not f.endswith(('.yml', '.yaml')): continue
+              path = os.path.join(wf_dir, f)
+              try:
+                  with open(path) as fh:
+                      yaml.safe_load(fh)
+                  print(f"  ✓ {f}")
+              except Exception as e:
+                  print(f"  ✗ {f}: {e}")
+                  ok = False
+          sys.exit(0 if ok else 1)
+          EOF
+
+      - name: Validate auto-fix script
+        run: |
+          set -euo pipefail
+          if [ ! -f scripts/auto_fix.py ]; then
+            echo "FATAL: scripts/auto_fix.py missing"
+            exit 1
+          fi
+          python3 -m py_compile scripts/auto_fix.py
+          echo "auto_fix.py compiles"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Validation Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ All NovaOS build files validated successfully." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "❌ Validation failed - auto-fix will trigger next." >> "$GITHUB_STEP_SUMMARY"
+          fi

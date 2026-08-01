@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# =============================================================================
+# novaos-firstboot - First-boot configuration wizard
+# =============================================================================
+# Runs as a systemd service on first boot (NovaOS-Firstboot.service).
+# Responsibilities:
+#   1. Refresh pacman mirrorlist via reflector
+#   2. Update keyring + system packages
+#   3. Configure Flatpak Flathub remote
+#   4. Set timezone based on GeoIP
+#   5. Disable passwordless sudo (security hardening)
+#   6. Mark itself complete so it never runs again
+#
+set -euo pipefail
+
+LOG_TAG="NovaOS-Firstboot"
+log()   { logger -t "$LOG_TAG" -- "$*"; echo "[$LOG_TAG] $*"; }
+err()   { logger -t "$LOG_TAG" -p user.err -- "ERROR: $*"; echo "[$LOG_TAG] ERROR: $*" >&2; }
+
+# Idempotency: don't run twice
+SENTINEL="/var/lib/novaos/.firstboot-complete"
+if [ -f "$SENTINEL" ]; then
+    log "Firstboot already complete; nothing to do."
+    exit 0
+fi
+
+log "NovaOS first-boot starting..."
+
+# 1. Refresh mirrors via reflector (pick 20 fastest HTTPS mirrors)
+log "Refreshing pacman mirrorlist via reflector..."
+if command -v reflector >/dev/null 2>&1; then
+    reflector \
+        --country us,gb,de,fr,nl,se,jp,sg \
+        --age 12 \
+        --protocol https \
+        --sort rate \
+        --number 20 \
+        --save /etc/pacman.d/mirrorlist 2>/dev/null || log "reflector failed; using default mirrorlist"
+fi
+
+# 2. Update keyring + packages
+log "Updating archlinux-keyring..."
+pacman -Sy --noconfirm archlinux-keyring 2>/dev/null || log "keyring update failed"
+
+log "Running full system upgrade..."
+pacman -Su --noconfirm 2>/dev/null || log "system upgrade had issues (network?)"
+
+# 3. Configure Flatpak Flathub remote
+if command -v flatpak >/dev/null 2>&1; then
+    log "Adding Flathub remote..."
+    flatpak remote-add --if-not-exists --system flathub \
+        https://flathub.org/repo/flathub.flatpakrepo 2>/dev/null || log "flathub already present"
+fi
+
+# 4. Set timezone based on GeoIP (fallback: Africa/Lagos)
+log "Detecting timezone via GeoIP..."
+if command -v curl >/dev/null 2>&1; then
+    TZ=$(curl -fsSL --max-time 5 https://ipapi.co/timezone/ 2>/dev/null || echo "")
+    if [ -z "$TZ" ] || [ ! -f "/usr/share/zoneinfo/${TZ}" ]; then
+        TZ="Africa/Lagos"
+    fi
+    log "Setting timezone to $TZ"
+    timedatectl set-timezone "$TZ" 2>/dev/null || ln -sf "/usr/share/zoneinfo/$TZ" /etc/localtime
+fi
+
+# 5. Rebuild initramfs (just in case kernel was updated)
+log "Rebuilding initramfs..."
+mkinitcpio -P 2>/dev/null || log "initramfs rebuild skipped"
+
+# 6. Security hardening: require password for sudo (only on installed system,
+#    not on the live ISO). We detect "installed" by checking for /etc/novaos/installed.
+if [ -f /etc/novaos/installed ]; then
+    log "Hardening sudo (require password for wheel group)..."
+    cat > /etc/sudoers.d/10-novaos-wheel <<'EOF'
+# NovaOS - installed system. Wheel group requires password.
+%wheel  ALL=(ALL:ALL) ALL
+EOF
+    chmod 0440 /etc/sudoers.d/10-novaos-wheel
+fi
+
+# 7. Mark complete
+mkdir -p /var/lib/novaos
+date -u +%Y-%m-%dT%H:%M:%SZ > "$SENTINEL"
+log "NovaOS first-boot complete."
+
+# Disable ourselves so we don't run again
+systemctl disable NovaOS-Firstboot.service 2>/dev/null || true
+
+exit 0

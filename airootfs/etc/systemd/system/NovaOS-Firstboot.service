@@ -1,0 +1,16 @@
+[Unit]
+Description=NovaOS First-boot Configuration Wizard
+DefaultDependencies=no
+After=local-fs.target NetworkManager.service
+Before=multi-user.target display-manager.service
+ConditionPathExists=!/var/lib/novaos/.firstboot-complete
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/novaos-firstboot
+RemainAfterExit=yes
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

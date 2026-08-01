@@ -1,0 +1,250 @@
+# =============================================================================
+# NovaOS - main ISO build workflow
+# =============================================================================
+# Builds a bootable NovaOS ISO using archiso inside an Arch Linux container.
+# Triggered on every push to main, on tags (creates a release), on PR, and
+# supports manual dispatch.
+#
+# Output: a `novaos-<date>.iso` artifact uploaded to GitHub Actions.
+# Tag pushes also create a GitHub Release with the ISO attached.
+# =============================================================================
+
+name: Build NovaOS ISO
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to build from (defaults to current branch)'
+        required: false
+        default: ''
+      profile:
+        description: 'Archiso profile to build'
+        required: false
+        default: 'releng'
+
+concurrency:
+  group: build-iso-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ISO_NAME: novaos
+  ARTIFACT_RETENTION_DAYS: 14
+
+jobs:
+  build:
+    name: Build ISO (x86_64)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    permissions:
+      contents: write
+      actions: read
+      packages: write
+
+    steps:
+      # ----------------------------------------------------------------------
+      # 1. Checkout
+      # ----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      # ----------------------------------------------------------------------
+      # 2. Prepare build environment on the Ubuntu runner
+      # ----------------------------------------------------------------------
+      - name: Install host build deps
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            squashfs-tools \
+            xorriso \
+            mtools \
+            dosfstools \
+            archiso \
+            || sudo apt-get install -y --no-install-recommends \
+                 squashfs-tools xorriso mtools dosfstools
+
+      # ----------------------------------------------------------------------
+      # 3. Build inside an Arch Linux container (real archiso)
+      # ----------------------------------------------------------------------
+      - name: Build NovaOS ISO in Arch container
+        id: archiso_build
+        run: |
+          set -euo pipefail
+          # Create output directories on the host so they survive the container
+          mkdir -p "$PWD/work" "$PWD/out" "$PWD/build-logs"
+
+          # Run archiso inside archlinux:latest. We mount the repo + output
+          # dirs so the resulting ISO is accessible on the host afterwards.
+          docker run --rm \
+            --privileged \
+            -v "$PWD:/novaos" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -w /novaos \
+            archlinux:latest \
+            bash -eu -c '
+              set -euo pipefail
+
+              echo "=== Installing archiso + base deps in container ==="
+              # Bootstrap pacman keyring
+              pacman-key --init
+              pacman-key --populate archlinux
+
+              # Install archiso + helpers
+              pacman -Sy --noconfirm --needed \
+                archiso \
+                git \
+                reflector \
+                pacman-contrib \
+                sudo \
+                bash \
+                squashfs-tools \
+                libisoburn \
+                mtools \
+                dosfstools
+
+              echo "=== Refreshing mirrorlist (fastest HTTPS) ==="
+              reflector \
+                --country us,gb,de,fr,nl,se,jp,sg \
+                --age 12 \
+                --protocol https \
+                --sort rate \
+                --number 20 \
+                --save /etc/pacman.d/mirrorlist || true
+
+              echo "=== Building local novaos-repo (empty for now) ==="
+              mkdir -p /tmp/novaos-repo/x86_64
+              cd /tmp/novaos-repo/x86_64
+              # No packages to build yet - this is the placeholder that satisfies
+              # the [novaos] repo entry in pacman.conf
+              repo-add novaos.db.tar.gz 2>/dev/null || true
+              cd /novaos
+
+              echo "=== Profile validation ==="
+              if [ ! -f profiledef.sh ]; then
+                echo "FATAL: profiledef.sh missing"
+                exit 1
+              fi
+              if [ ! -f packages.x86_64 ]; then
+                echo "FATAL: packages.x86_64 missing"
+                exit 1
+              fi
+
+              echo "=== Running mkarchiso ==="
+              # mkarchiso writes to ./work and ./out by default
+              # We capture full output to a log file for the auto-fix workflow.
+              mkarchiso -v -w /novaos/work -o /novaos/out . 2>&1 | tee /novaos/build-logs/mkarchiso.log
+
+              echo "=== Build complete ==="
+              ls -la /novaos/out/
+            '
+
+      # ----------------------------------------------------------------------
+      # 4. Verify the ISO exists and compute checksums
+      # ----------------------------------------------------------------------
+      - name: Verify ISO and compute SHA256
+        id: verify
+        run: |
+          set -euo pipefail
+          ISO=$(ls -1 out/*.iso 2>/dev/null | head -1 || true)
+          if [ -z "$ISO" ]; then
+            echo "FATAL: No ISO produced in out/"
+            ls -la out/ || true
+            exit 1
+          fi
+          echo "iso_path=$ISO" >> "$GITHUB_OUTPUT"
+          echo "iso_name=$(basename "$ISO")" >> "$GITHUB_OUTPUT"
+          sha256sum "$ISO" > "$ISO.sha256"
+          ls -la out/
+          cat "$ISO.sha256"
+
+      # ----------------------------------------------------------------------
+      # 5. Upload build logs as artifact (for debugging + auto-fix)
+      # ----------------------------------------------------------------------
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: novaos-build-logs-${{ github.run_id }}
+          path: |
+            build-logs/
+            work/build.log
+          retention-days: 30
+          if-no-files-found: ignore
+
+      # ----------------------------------------------------------------------
+      # 6. Upload the ISO as artifact (always)
+      # ----------------------------------------------------------------------
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: novaos-iso-${{ github.run_id }}
+          path: |
+            out/*.iso
+            out/*.iso.sha256
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+          if-no-files-found: error
+
+      # ----------------------------------------------------------------------
+      # 7. On tag push, create a GitHub Release with the ISO
+      # ----------------------------------------------------------------------
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/*.iso
+            out/*.iso.sha256
+          name: NovaOS ${{ github.ref_name }}
+          body: |
+            # NovaOS ${{ github.ref_name }}
+
+            Automated build from `${{ github.sha }}`.
+
+            ## Download
+            - `novaos-*.iso`  - the live/install ISO (x86_64)
+            - `novaos-*.iso.sha256`  - SHA256 checksum
+
+            ## Install
+            1. Flash the ISO to a USB stick (>=4GB) with `dd` or Rufus / Etcher.
+            2. Boot from it.
+            3. Click "Install NovaOS" on the desktop to launch Calamares.
+
+            ## Verification
+            ```sh
+            sha256sum -c novaos-*.iso.sha256
+            ```
+
+            Built on ${{ github.run_id }}.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ----------------------------------------------------------------------
+      # 8. (Optional) Push ISO to GitHub Packages / Releases
+      # ----------------------------------------------------------------------
+      - name: Summary
+        if: always()
+        run: |
+          echo "## NovaOS Build Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${{ steps.verify.outputs.iso_path }}" ]; then
+            SIZE=$(du -h "${{ steps.verify.outputs.iso_path }}" | cut -f1)
+            echo "✅ ISO built: \`${{ steps.verify.outputs.iso_name }}\` ($SIZE)" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "SHA256:" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat "${{ steps.verify.outputs.iso_path }}.sha256" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "❌ Build failed - see build-logs artifact." >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -1,0 +1,16 @@
+{
+    "KPlugin": {
+        "Authors": [{ "Email": "novaos@salom600.osd", "Name": "NovaOS Project" }],
+        "Category": "Wallpaper",
+        "Description": "NovaOS Aurora - animated gradient wallpaper that responds to time of day.",
+        "Id": "novaos-animated",
+        "License": "CC-BY-SA-4.0",
+        "Name": "NovaOS Animated Aurora",
+        "ServiceTypes": ["Plasma/Wallpaper"],
+        "Version": "2026.01",
+        "Website": "https://github.com/salom600/osd"
+    },
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-DropMimeTypes": ["image/png", "image/jpeg"],
+    "X-Plasma-Provides": ["org.kde.plasma.wallpaper"]
+}

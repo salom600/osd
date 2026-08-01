@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=NovaOS Wine Launcher
+Name[ar]=مشغل ويندوز نوفا
+Comment=Run Windows programs (.exe) with one click
+Comment[ar]=تشغيل برامج ويندوز (.exe) بنقرة واحدة
+Exec=/usr/bin/novaos-wine-launcher %f
+Icon=wine
+Terminal=false
+Categories=Utility;Emulator;
+StartupNotify=true
+MimeType=application/x-ms-dos-executable;application/x-msi;application/x-wine-extension-msp;

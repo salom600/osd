@@ -1,0 +1,16 @@
+[SddmGreeterTheme]
+Name=NovaOS
+Description=NovaOS modern login - 3-layer boot/login/password with animated glassmorphism
+Author=NovaOS Project
+Copyright=(c) 2026 NovaOS Project
+License=CC-BY-SA-4.0
+Type=sddm-theme
+Version=1.0
+Website=https://github.com/salom600/osd
+Screenshot=preview.png
+MainScript=Main.qml
+ConfigFile=theme.conf
+TranslationsDirectory=translations
+Theme-Id=novaos
+Preferred-Redirect-Theme=
+(QtCompiler=Qt6)

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# =============================================================================
+# novaos-store - One-click app store launcher
+# =============================================================================
+# Opens Plasma Discover, with Flatpak + pacman backends enabled, and
+# automatically points the user at curated app collections.
+#
+# Layered responsibilities:
+#   1. Ensure Flatpak + Flathub are configured (first-run)
+#   2. Show a friendly "featured apps" notification
+#   3. Launch Discover in browse mode
+#
+set -euo pipefail
+
+# 1. Make sure Flatpak + Flathub remote are configured
+if command -v flatpak >/dev/null 2>&1; then
+    if ! flatpak remotes --system 2>/dev/null | grep -q '^flathub\b'; then
+        pkexec flatpak remote-add --if-not-exists --system flathub \
+            https://flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
+    fi
+fi
+
+# 2. Friendly desktop notification
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send -i novaos-store \
+        "NovaOS Store" \
+        "Browse thousands of apps — Flatpak, AUR, and system packages in one place." \
+        2>/dev/null || true
+fi
+
+# 3. Launch Plasma Discover
+if command -v plasma-discover >/dev/null 2>&1; then
+    exec plasma-discover --mode browse
+elif command -v discover >/dev/null 2>&1; then
+    exec discover --mode browse
+else
+    echo "NovaOS Store requires Plasma Discover." >&2
+    echo "Install it with: sudo pacman -S plasma-discover" >&2
+    exit 1
+fi

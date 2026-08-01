@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# =============================================================================
+# novaos-update - Unified system update command
+# =============================================================================
+# Combines:
+#   - pacman system update
+#   - AUR helper update (if yay/paru installed)
+#   - Flatpak update
+#   - Mirror refresh (weekly)
+#   - Orphan cleanup
+#   - Initramfs rebuild (if kernel changed)
+#
+set -euo pipefail
+
+log()  { echo -e "\033[1;34m[NovaOS]\033[0m $*"; }
+err()  { echo -e "\033[1;31m[NovaOS ERROR]\033[0m $*" >&2; }
+
+# 1. Refresh mirrorlist weekly
+LAST_REFRESH="/var/lib/novaos/.last-mirror-refresh"
+if [ ! -f "$LAST_REFRESH" ] || [ $(( $(date +%s) - $(stat -c %Y "$LAST_REFRESH" 2>/dev/null || echo 0) )) -gt 604800 ]; then
+    log "Refreshing mirrorlist (weekly)..."
+    if command -v reflector >/dev/null 2>&1; then
+        sudo reflector --age 12 --protocol https --sort rate --number 20 --save /etc/pacman.d/mirrorlist 2>/dev/null || log "reflector failed; keeping existing mirrorlist"
+    fi
+    sudo mkdir -p /var/lib/novaos
+    sudo sh -c "date +%s > $LAST_REFRESH"
+fi
+
+# 2. Update keyring first
+log "Updating archlinux-keyring..."
+sudo pacman -Sy --noconfirm archlinux-keyring 2>/dev/null || err "keyring update failed"
+
+# 3. System upgrade
+log "Running system upgrade..."
+sudo pacman -Su --noconfirm 2>&1 || err "system upgrade had issues"
+
+# 4. AUR update (if helper present)
+if command -v yay >/dev/null 2>&1; then
+    log "Updating AUR packages via yay..."
+    yay -Sua --noconfirm 2>&1 || err "AUR update failed"
+elif command -v paru >/dev/null 2>&1; then
+    log "Updating AUR packages via paru..."
+    paru -Sua --noconfirm 2>&1 || err "AUR update failed"
+fi
+
+# 5. Flatpak update
+if command -v flatpak >/dev/null 2>&1; then
+    log "Updating Flatpak apps..."
+    flatpak update --noninteractive --system 2>&1 || err "flatpak update failed"
+    flatpak uninstall --unused --noninteractive 2>/dev/null || true
+fi
+
+# 6. Rebuild initramfs if kernel was updated
+if pacman -Q linux 2>/dev/null | grep -q "$(uname -r | cut -d. -f1,2)"; then
+    : # kernel matches running version, no rebuild needed
+else
+    log "Kernel updated - rebuilding initramfs..."
+    sudo mkinitcpio -P 2>&1 || err "initramfs rebuild failed"
+fi
+
+# 7. Clean orphans
+ORPHANS=$(pacman -Qdtq 2>/dev/null || true)
+if [ -n "$ORPHANS" ]; then
+    log "Removing orphaned packages..."
+    sudo pacman -Rns --noconfirm $ORPHANS 2>&1 || true
+fi
+
+# 8. Clean pacman cache (keep last 2 versions)
+log "Cleaning pacman cache (keeping last 2 versions)..."
+sudo paccache -rk2 2>/dev/null || true
+
+log "NovaOS update complete."

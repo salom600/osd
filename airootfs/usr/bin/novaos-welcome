@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# =============================================================================
+# novaos-welcome - First-run welcome screen
+# =============================================================================
+# A simple Qt-based welcome window shown on first login. Uses kdialog
+# so we don't need to ship a separate binary - it ships with Plasma.
+#
+set -euo pipefail
+
+SENTINEL="${HOME}/.config/novaos/.welcome-shown"
+
+if [ -f "$SENTINEL" ]; then
+    exit 0  # Already shown
+fi
+
+mkdir -p "${HOME}/.config/novaos"
+
+if ! command -v kdialog >/dev/null 2>&1; then
+    echo "kdialog not installed; skipping welcome" >&2
+    exit 0
+fi
+
+# Show a multi-step welcome
+kdialog --title "Welcome to NovaOS" \
+    --msgbox \
+"Welcome to NovaOS 2026 'Aurora'
+
+A modern, lightweight Linux distribution built on Arch Linux + KDE Plasma 6.
+
+• Live user:  novaos   (password: novaos)
+• To install NovaOS to your disk:  double-click 'Install NovaOS' on the desktop
+• To install more apps:  click the NovaOS Store icon in the panel
+• To run Windows programs:  right-click any .exe -> 'Open with NovaOS Wine Launcher'
+
+Need help?  https://github.com/salom600/osd/issues" 2>/dev/null || true
+
+# Mark as shown
+date -u +%Y-%m-%dT%H:%M:%SZ > "$SENTINEL"
+
+exit 0

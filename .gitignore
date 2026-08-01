@@ -1,0 +1,55 @@
+# =============================================================================
+# NovaOS build artifacts and editor cruft
+# =============================================================================
+
+# --- ISO build output (work/) ---
+work/
+out/
+output/
+iso-build/
+*.iso
+*.iso.sig
+*.iso.sha256
+*.sfs
+*.sqfs
+airootfs.sfs
+
+# --- Local repo scratch (created by CI, never committed) ---
+/tmp/novaos-repo/
+novaos-repo/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Editor / IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
+build-logs/
+
+# --- Secrets ---
+*.token
+*.key
+.env
+.env.*
+secrets.*
+
+# --- OS cruft ---
+.directory
+.Trash-*

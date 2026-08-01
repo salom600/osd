@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# =============================================================================
+# novaos-wine-launcher - Run Windows programs with one click
+# =============================================================================
+# Usage:
+#   novaos-wine-launcher <path/to/program.exe>
+#   novaos-wine-launcher --bottles <path/to/program.exe>   # use Bottles GUI
+#   novaos-wine-launcher --install <path/to/setup.exe>     # silent install
+#
+# Detects Wine + Bottles, picks the best available runner, and launches
+# the .exe with appropriate wineprefix isolation.
+#
+set -euo pipefail
+
+# --- Sanity check ---
+if ! command -v wine >/dev/null 2>&1 && ! command -v bottles >/dev/null 2>&1; then
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -u critical -i dialog-error \
+            "NovaOS Wine Launcher" \
+            "Neither Wine nor Bottles is installed.\nInstall with:\n  sudo pacman -S wine bottles"
+    fi
+    echo "ERROR: Neither wine nor bottles is installed." >&2
+    echo "Fix:   sudo pacman -S wine bottles" >&2
+    exit 1
+fi
+
+# --- Parse args ---
+MODE="run"
+TARGET=""
+case "${1:-}" in
+    --bottles)  MODE="bottles"; TARGET="${2:-}"; shift 2 ;;
+    --install)  MODE="install"; TARGET="${2:-}"; shift 2 ;;
+    --help|-h)
+        cat <<EOF
+NovaOS Wine Launcher
+  novaos-wine-launcher <program.exe>         Run a Windows program
+  novaos-wine-launcher --bottles <prog.exe>  Launch via Bottles GUI
+  novaos-wine-launcher --install <setup.exe> Silent install
+EOF
+        exit 0 ;;
+    *)          TARGET="${1:-}" ;;
+esac
+
+if [ -z "$TARGET" ]; then
+    echo "Usage: novaos-wine-launcher <program.exe>" >&2
+    exit 2
+fi
+if [ ! -f "$TARGET" ]; then
+    echo "ERROR: file not found: $TARGET" >&2
+    exit 3
+fi
+
+# --- Notify the user we're starting ---
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send -i novaos-wine-launcher \
+        "NovaOS Wine Launcher" \
+        "Starting $(basename "$TARGET") via compatibility layer..." 2>/dev/null || true
+fi
+
+case "$MODE" in
+    bottles)
+        if command -v bottles >/dev/null 2>&1; then
+            exec bottles run "$TARGET"
+        else
+            echo "Bottles not installed, falling back to wine." >&2
+            exec wine "$TARGET"
+        fi
+        ;;
+    install)
+        exec wine "$TARGET" /SILENT /VERYSILENT /SP- 2>/dev/null || exec wine "$TARGET"
+        ;;
+    run)
+        # Prefer Bottles if available (better prefix isolation)
+        if command -v bottles >/dev/null 2>&1; then
+            bottles run "$TARGET" 2>/dev/null || exec wine "$TARGET"
+        else
+            exec wine "$TARGET"
+        fi
+        ;;
+esac
